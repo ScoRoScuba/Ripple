@@ -1,4 +1,15 @@
 services:
+  migrations:
+    build:
+      context: .
+      dockerfile: src/Ripple.Migrations/Dockerfile
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=ticketing;Username=postgres;Password=postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: on-failure
+
   api:
     build:
       context: .
@@ -11,6 +22,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
 
   postgres:
     image: postgres:17-alpine
@@ -22,7 +35,6 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d ticketing"]
       interval: 5s

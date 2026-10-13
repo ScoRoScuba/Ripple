@@ -4,6 +4,7 @@
     <Project Path="src/Ripple.DataStore/Ripple.DataStore.csproj" />
     <Project Path="src/Ripple.Domain/Ripple.Domain.csproj" />
     <Project Path="src/Ripple.Interfaces/Ripple.Interfaces.csproj" />
+    <Project Path="src/Ripple.Migrations/Ripple.Migrations.csproj" />
     <Project Path="src/Ripple.Services/Ripple.Services.csproj" />
   </Folder>
   <Folder Name="/tests/">
