@@ -1,0 +1,49 @@
+# Build output
+bin/
+obj/
+out/
+
+# .NET
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.rsuser
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+nuget.config
+
+# Test results
+TestResults/
+coverage/
+*.coveragexml
+*.trx
+
+# Docker
+.dockerignore
+
+# Environment / secrets
+.env
+*.env
+appsettings.*.json
+!appsettings.json
+
+# Claude Code
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
