@@ -5,6 +5,8 @@ var connectionString =
     ?? args.FirstOrDefault()
     ?? "Host=localhost;Port=5432;Database=ticketing;Username=postgres;Password=postgres";
 
+MigrationRunner.EnsureDatabaseExists(connectionString);
+
 if (MigrationRunner.IsUpgradeRequired(connectionString))
     Console.WriteLine("Applying pending migrations...");
 else

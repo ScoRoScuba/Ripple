@@ -24,14 +24,21 @@ public class MigrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public void IsUpgradeRequired_Creates_Missing_Database()
+    public void Migrations_Apply_When_Database_Does_Not_Exist()
     {
         var connectionString = new NpgsqlConnectionStringBuilder(_postgres.GetConnectionString())
         {
-            Database = "does_not_exist_yet"
+            Database = "fresh_db"
         }.ConnectionString;
 
+        // Same sequence as Program.cs: ensure database, check, then upgrade.
+        MigrationRunner.EnsureDatabaseExists(connectionString);
+
         Assert.True(MigrationRunner.IsUpgradeRequired(connectionString));
+
+        var result = MigrationRunner.Run(connectionString);
+
+        Assert.True(result.Successful, result.Error?.Message);
     }
 
     [Fact]
@@ -69,7 +76,12 @@ public class MigrationTests : IAsyncLifetime
         await using var cmd = new NpgsqlCommand("SELECT COUNT(*) FROM schemaversions", conn);
         var count = Convert.ToInt32(await cmd.ExecuteScalarAsync());
 
-        Assert.Equal(1, count);
+        var scriptsOnDisk = typeof(MigrationRunner).Assembly
+            .GetManifestResourceNames()
+            .Count(name => name.EndsWith(".sql", StringComparison.OrdinalIgnoreCase));
+
+        Assert.True(scriptsOnDisk > 0, "No embedded migration scripts found.");
+        Assert.Equal(scriptsOnDisk, count);
     }
 
     [Fact]
