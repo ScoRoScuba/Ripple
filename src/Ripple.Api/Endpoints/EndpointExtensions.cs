@@ -10,7 +10,8 @@ public static class EndpointExtensions
     private const string VersionedRoutePrefix = "api/v{version:apiVersion}";
 
     /// <summary>
-    /// Registers every concrete <see cref="IEndpoint"/> in the assembly with DI.
+    /// Registers every concrete <see cref="IEndpoint"/> in the assembly with DI, and makes malformed
+    /// requests throw so they are reported as problem details.
     /// </summary>
     public static IServiceCollection AddEndpoints(this IServiceCollection services, Assembly assembly)
     {
@@ -19,6 +20,11 @@ public static class EndpointExtensions
             .Select(type => ServiceDescriptor.Transient(typeof(IEndpoint), type));
 
         services.TryAddEnumerable(endpoints);
+
+        // Minimal APIs only throw on a malformed request (e.g. an unreadable JSON body) in Development;
+        // elsewhere they return an empty 400. Always throw, so ExceptionHandlingMiddleware turns it into
+        // the same problem-details 400 in every environment.
+        services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
         return services;
     }
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using FluentAssertions;
 using Moq;
 using Ripple.Api.Endpoints;
@@ -96,6 +97,17 @@ public class TicketEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         var response = await _client.PostAsJsonAsync($"/api/v1/events/{eventId}/tickets", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task PurchaseTickets_WithMalformedJson_Returns400()
+    {
+        var response = await _client.PostAsync($"/api/v1/events/{Guid.NewGuid()}/tickets",
+            new StringContent("{ not json", Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        _ticketService.Verify(s => s.PurchaseAsync(It.IsAny<Guid>(), It.IsAny<PurchaseTicketRequest>()), Times.Never);
     }
 
     private static EventAvailabilityResponse SampleAvailability(Guid eventId) => new(

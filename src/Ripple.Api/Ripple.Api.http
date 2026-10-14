@@ -1,6 +1,131 @@
-@Ripple.Api_HostAddress = http://localhost:5084
+# Manual requests for Rider / VS Code REST Client.
+# Run the "http" launch profile (port 5084) with Postgres up (`docker compose up -d postgres migrations`),
+# or switch @host to http://localhost:8080 to hit the API container.
+# Run "Create event" first: it stores the event and tier ids that the later requests use.
 
-GET {{Ripple.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+@host = http://localhost:5084
+@api = {{host}}/api/v1
 
-###
+### Create event
+POST {{api}}/events
+Content-Type: application/json
+
+{
+  "name": "Summer Gig",
+  "description": "An evening of live music",
+  "venue": "Town Hall",
+  "date": "2030-07-01",
+  "time": "20:00",
+  "totalCapacity": 150,
+  "pricingTiers": [
+    { "name": "General", "price": 25.00, "capacity": 100 },
+    { "name": "VIP", "price": 60.00, "capacity": 50 }
+  ]
+}
+
+> {%
+    client.global.set("eventId", response.body.id);
+    client.global.set("generalTierId", response.body.pricingTiers.find(t => t.name === "General").id);
+    client.global.set("vipTierId", response.body.pricingTiers.find(t => t.name === "VIP").id);
+%}
+
+### List events
+GET {{api}}/events
+
+### Get event
+GET {{api}}/events/{{eventId}}
+
+### Availability
+GET {{api}}/events/{{eventId}}/availability
+
+### Purchase tickets
+POST {{api}}/events/{{eventId}}/tickets
+Content-Type: application/json
+
+{
+  "pricingTierId": "{{generalTierId}}",
+  "quantity": 2,
+  "purchaserName": "Test Buyer",
+  "purchaserEmail": "buyer@example.com"
+}
+
+### Purchase more than are available (409)
+POST {{api}}/events/{{eventId}}/tickets
+Content-Type: application/json
+
+{
+  "pricingTierId": "{{vipTierId}}",
+  "quantity": 51,
+  "purchaserName": "Test Buyer",
+  "purchaserEmail": "buyer@example.com"
+}
+
+### Update event: keep both tiers (by id) and raise the VIP price; past sales keep the price paid
+PUT {{api}}/events/{{eventId}}
+Content-Type: application/json
+
+{
+  "name": "Summer Gig",
+  "description": "An evening of live music",
+  "venue": "Town Hall",
+  "date": "2030-07-01",
+  "time": "20:00",
+  "totalCapacity": 150,
+  "pricingTiers": [
+    { "id": "{{generalTierId}}", "name": "General", "price": 25.00, "capacity": 100 },
+    { "id": "{{vipTierId}}", "name": "VIP", "price": 75.00, "capacity": 50 }
+  ]
+}
+
+### Update event: drop a tier that has sales (409)
+PUT {{api}}/events/{{eventId}}
+Content-Type: application/json
+
+{
+  "name": "Summer Gig",
+  "description": "An evening of live music",
+  "venue": "Town Hall",
+  "date": "2030-07-01",
+  "time": "20:00",
+  "totalCapacity": 50,
+  "pricingTiers": [
+    { "id": "{{vipTierId}}", "name": "VIP", "price": 75.00, "capacity": 50 }
+  ]
+}
+
+### Sales report for the event
+GET {{api}}/reports/sales/{{eventId}}
+
+### Sales report for all events
+GET {{api}}/reports/sales
+
+### Validation failure (422)
+POST {{api}}/events
+Content-Type: application/json
+
+{
+  "name": "",
+  "description": "",
+  "venue": "Town Hall",
+  "date": "2020-01-01",
+  "time": "20:00",
+  "totalCapacity": 0,
+  "pricingTiers": []
+}
+
+### Unreadable value (400): time must be "HH:mm" or "HH:mm:ss"
+POST {{api}}/events
+Content-Type: application/json
+
+{
+  "name": "Summer Gig",
+  "description": "An evening of live music",
+  "venue": "Town Hall",
+  "date": "2030-07-01",
+  "time": "8pm",
+  "totalCapacity": 150,
+  "pricingTiers": [{ "name": "General", "price": 25.00, "capacity": 150 }]
+}
+
+### Delete event (409 once it has sales)
+DELETE {{api}}/events/{{eventId}}

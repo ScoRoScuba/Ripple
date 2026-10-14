@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using FluentAssertions;
 using Moq;
 using Ripple.Api.Endpoints;
@@ -180,6 +181,23 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         var response = await _client.DeleteAsync($"/api/v1/events/{id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
+    public async Task CreateEvent_WithUnparseableField_Returns400NamingTheField()
+    {
+        const string body = """
+            { "name": "Gig", "venue": "Hall", "date": "2030-01-01", "time": "8pm",
+              "totalCapacity": 100, "pricingTiers": [{ "name": "General", "price": 10, "capacity": 100 }] }
+            """;
+
+        var response = await _client.PostAsync("/api/v1/events",
+            new StringContent(body, Encoding.UTF8, "application/json"));
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        (await response.Content.ReadAsStringAsync()).Should().Contain("$.time");
+        _eventService.Verify(s => s.CreateAsync(It.IsAny<CreateEventRequest>()), Times.Never);
     }
 
     private static EventResponse SampleEventResponse(Guid? id = null) => new(

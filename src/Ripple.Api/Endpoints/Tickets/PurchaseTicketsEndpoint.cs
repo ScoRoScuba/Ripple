@@ -13,6 +13,7 @@ public class PurchaseTicketsEndpoint : IEndpoint
             .WithName("PurchaseTickets")
             .WithSummary("Purchase tickets for an event")
             .Produces<TicketPurchaseResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);

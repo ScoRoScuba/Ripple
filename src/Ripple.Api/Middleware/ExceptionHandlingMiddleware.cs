@@ -24,6 +24,9 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         InsufficientCapacityException => (StatusCodes.Status409Conflict, "Insufficient Capacity"),
         SalesHistoryConflictException => (StatusCodes.Status409Conflict, "Conflicts With Tickets Sold"),
         ArgumentException => (StatusCodes.Status400BadRequest, "Bad Request"),
+        // Thrown by ASP.NET when the request itself is malformed (e.g. a body that isn't valid JSON
+        // for the request type): a client error, so keep the status it carries rather than a 500.
+        BadHttpRequestException badRequest => (badRequest.StatusCode, "Bad Request"),
         _ => (StatusCodes.Status500InternalServerError, "Internal Server Error")
     };
 
@@ -44,6 +47,14 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             context.TraceIdentifier);
     }
 
+    // For an unreadable body the useful part is the inner JSON error, which names the offending field
+    // (e.g. "Path: $.time"); the outer message only says the body couldn't be read.
+    private static string DetailFor(Exception exception) => exception switch
+    {
+        BadHttpRequestException { InnerException: System.Text.Json.JsonException json } => json.Message,
+        _ => exception.Message
+    };
+
     private static Task WriteProblemAsync(HttpContext context, Exception exception, int statusCode, string title)
     {
         context.Response.StatusCode = statusCode;
@@ -53,7 +64,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 type = $"https://httpstatuses.com/{statusCode}",
                 title,
                 status = statusCode,
-                detail = exception.Message
+                detail = DetailFor(exception)
             },
             options: (System.Text.Json.JsonSerializerOptions?)null,
             contentType: "application/problem+json");
