@@ -30,10 +30,14 @@ public class ReportServiceTests
 
         var result = await _sut.GetEventReportAsync(eventId);
 
+        // Tiers have different prices, so revenue must be priced per tier:
+        // General 20 x 50 = 1000, VIP 10 x 120 = 1200.
         result.Should().NotBeNull();
         result!.TotalTicketsSold.Should().Be(30);
-        result.TotalRevenue.Should().Be(30 * 50m);
+        result.TotalRevenue.Should().Be(2200m);
         result.TierBreakdown.Should().HaveCount(2);
+        result.TierBreakdown.Single(t => t.TierName == "General").Revenue.Should().Be(1000m);
+        result.TierBreakdown.Single(t => t.TierName == "VIP").Revenue.Should().Be(1200m);
     }
 
     [Fact]
@@ -47,7 +51,8 @@ public class ReportServiceTests
         var results = (await _sut.GetAllEventsReportAsync()).ToList();
 
         results.Should().HaveCount(2);
-        results.Should().OnlyContain(r => r.TotalTicketsSold == 30);
+        results.Select(r => r.EventId).Should().BeEquivalentTo([eventId1, eventId2]);
+        results.Should().OnlyContain(r => r.TotalTicketsSold == 30 && r.TotalRevenue == 2200m);
     }
 
     private static List<TierSalesSummary> SampleSummaries(Guid eventId) =>
@@ -59,6 +64,6 @@ public class ReportServiceTests
         new(eventId, "Rock Night", "The Arena",
             DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
             new TimeOnly(20, 0), 200,
-            Guid.NewGuid(), "VIP", 50m, 50, 10)
+            Guid.NewGuid(), "VIP", 120m, 50, 10)
     ];
 }
