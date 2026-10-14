@@ -47,3 +47,6 @@ appsettings.*.json
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Serilog file sink output
+**/logs/

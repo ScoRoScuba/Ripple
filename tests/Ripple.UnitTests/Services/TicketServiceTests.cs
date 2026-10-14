@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using FluentAssertions;
 using Moq;
 using Ripple.Events;
@@ -14,7 +15,7 @@ public class TicketServiceTests
     private readonly TicketService _sut;
 
     public TicketServiceTests() =>
-        _sut = new TicketService(_eventRepoMock.Object, _ticketRepoMock.Object);
+        _sut = new TicketService(_eventRepoMock.Object, _ticketRepoMock.Object, NullLogger<TicketService>.Instance);
 
     [Fact]
     public async Task PurchaseAsync_WhenEventNotFound_ThrowsEventNotFoundException()

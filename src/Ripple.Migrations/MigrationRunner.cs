@@ -1,22 +1,23 @@
 using DbUp;
 using DbUp.Builder;
 using DbUp.Engine;
+using DbUp.Engine.Output;
 
 namespace Ripple.Migrations;
 
 public static class MigrationRunner
 {
-    public static void EnsureDatabaseExists(string connectionString) =>
-        EnsureDatabase.For.PostgresqlDatabase(connectionString);
+    public static void EnsureDatabaseExists(string connectionString, IUpgradeLog? log = null) =>
+        EnsureDatabase.For.PostgresqlDatabase(connectionString, log ?? new ConsoleUpgradeLog());
 
     public static bool IsUpgradeRequired(string connectionString) =>
         CreateBuilder(connectionString)
             .Build()
             .IsUpgradeRequired();
 
-    public static DatabaseUpgradeResult Run(string connectionString) =>
+    public static DatabaseUpgradeResult Run(string connectionString, IUpgradeLog? log = null) =>
         CreateBuilder(connectionString)
-            .LogToConsole()
+            .LogTo(log ?? new ConsoleUpgradeLog())
             .Build()
             .PerformUpgrade();
 

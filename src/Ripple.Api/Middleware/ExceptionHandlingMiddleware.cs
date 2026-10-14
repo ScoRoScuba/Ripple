@@ -12,21 +12,39 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
-            await HandleExceptionAsync(context, ex);
+            var (statusCode, title) = MapException(ex);
+            LogException(context, ex, statusCode);
+            await WriteProblemAsync(context, ex, statusCode, title);
         }
     }
 
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private static (int StatusCode, string Title) MapException(Exception exception) => exception switch
     {
-        var (statusCode, title) = exception switch
-        {
-            EventNotFoundException or PricingTierNotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
-            InsufficientCapacityException => (StatusCodes.Status409Conflict, "Insufficient Capacity"),
-            ArgumentException => (StatusCodes.Status400BadRequest, "Bad Request"),
-            _ => (StatusCodes.Status500InternalServerError, "Internal Server Error")
-        };
+        EventNotFoundException or PricingTierNotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
+        InsufficientCapacityException => (StatusCodes.Status409Conflict, "Insufficient Capacity"),
+        ArgumentException => (StatusCodes.Status400BadRequest, "Bad Request"),
+        _ => (StatusCodes.Status500InternalServerError, "Internal Server Error")
+    };
 
+    // Handled domain exceptions are expected outcomes: Warning, no stack trace.
+    // Anything unmapped is a fault: Error, with the full exception.
+    private void LogException(HttpContext context, Exception exception, int statusCode)
+    {
+        var isFault = statusCode >= StatusCodes.Status500InternalServerError;
+
+        logger.Log(isFault ? LogLevel.Error : LogLevel.Warning, isFault ? exception : null,
+            "[ExceptionHandlingMiddleware]:[InvokeAsync] - {ExceptionType} ({ExceptionMessage}) for {Method} {Path}{QueryString} returned {StatusCode} (TraceId {TraceId})",
+            exception.GetType().Name,
+            exception.Message,
+            context.Request.Method,
+            context.Request.Path,
+            context.Request.QueryString.Value,
+            statusCode,
+            context.TraceIdentifier);
+    }
+
+    private static Task WriteProblemAsync(HttpContext context, Exception exception, int statusCode, string title)
+    {
         context.Response.StatusCode = statusCode;
         return context.Response.WriteAsJsonAsync(new
         {

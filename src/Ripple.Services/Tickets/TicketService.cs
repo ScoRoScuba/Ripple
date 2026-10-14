@@ -1,10 +1,14 @@
 using Ripple.Events;
 using Ripple.Tickets;
 using Ripple.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace Ripple.Tickets;
 
-public class TicketService(IEventRepository eventRepository, ITicketRepository ticketRepository) : ITicketService
+public class TicketService(
+    IEventRepository eventRepository,
+    ITicketRepository ticketRepository,
+    ILogger<TicketService> logger) : ITicketService
 {
     public async Task<TicketPurchaseResponse> PurchaseAsync(Guid eventId, PurchaseTicketRequest request)
     {
@@ -21,6 +25,10 @@ public class TicketService(IEventRepository eventRepository, ITicketRepository t
             request.PurchaserName,
             request.PurchaserEmail,
             tier.Price);
+
+        logger.LogInformation(
+            "[TicketService]:[PurchaseAsync] - Ticket {TicketId}: {Quantity} x '{TierName}' for event {EventId} (tier {PricingTierId})",
+            ticket.Id, ticket.Quantity, tier.Name, eventId, tier.Id);
 
         return new TicketPurchaseResponse(
             ticket.Id,

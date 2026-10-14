@@ -1,10 +1,11 @@
 using Ripple.Events;
 using Ripple.Domain.Entities;
 using Ripple.Domain.Exceptions;
+using Microsoft.Extensions.Logging;
 
 namespace Ripple.Events;
 
-public class EventService(IEventRepository repository) : IEventService
+public class EventService(IEventRepository repository, ILogger<EventService> logger) : IEventService
 {
     public async Task<EventResponse> GetByIdAsync(Guid id)
     {
@@ -51,6 +52,10 @@ public class EventService(IEventRepository repository) : IEventService
         }).ToList();
 
         var created = await repository.CreateAsync(@event, tiers);
+
+        logger.LogInformation("[EventService]:[CreateAsync] - Created event {EventId} '{EventName}' with {TierCount} pricing tiers",
+            created.Id, created.Name, tiers.Count);
+
         return MapToResponse(created);
     }
 
@@ -84,6 +89,10 @@ public class EventService(IEventRepository repository) : IEventService
 
         await repository.UpdateAsync(existing, tiers);
         existing.PricingTiers = tiers;
+
+        logger.LogInformation("[EventService]:[UpdateAsync] - Updated event {EventId}; pricing tiers replaced ({TierCount})",
+            id, tiers.Count);
+
         return MapToResponse(existing);
     }
 
@@ -91,6 +100,8 @@ public class EventService(IEventRepository repository) : IEventService
     {
         if (!await repository.ExistsAsync(id)) throw new EventNotFoundException(id);
         await repository.DeleteAsync(id);
+
+        logger.LogInformation("[EventService]:[DeleteAsync] - Deleted event {EventId}", id);
     }
 
     private static EventResponse MapToResponse(Event evt) => new(

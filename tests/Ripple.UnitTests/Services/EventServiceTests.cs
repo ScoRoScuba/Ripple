@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using FluentAssertions;
 using Moq;
 using Ripple.Events;
@@ -11,7 +12,7 @@ public class EventServiceTests
     private readonly Mock<IEventRepository> _repoMock = new();
     private readonly EventService _sut;
 
-    public EventServiceTests() => _sut = new EventService(_repoMock.Object);
+    public EventServiceTests() => _sut = new EventService(_repoMock.Object, NullLogger<EventService>.Instance);
 
     [Fact]
     public async Task GetByIdAsync_WhenEventExists_ReturnsResponse()

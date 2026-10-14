@@ -51,6 +51,14 @@ These are important in this codebase. Follow them in new code and when changing 
 - Small methods with intention-revealing names; prefer guard clauses over deep nesting.
 - Composition over inheritance.
 
+## Logging (Serilog)
+
+- Serilog is configured once, in `Ripple.Api/Logging/SerilogExtensions.cs`. Levels and sinks live in the `Serilog` section of `appsettings*.json`; enrichers are set in code.
+- Classes take `ILogger<T>` (Microsoft.Extensions.Logging) by constructor injection. Only the host projects (`Ripple.Api`, `Ripple.Migrations`) reference Serilog; never use the static `Log` outside `Program.cs`.
+- Message format: `"[ClassName]:[MethodName] - Description {StructuredProperty}"`. Use named placeholders, never string interpolation.
+- Log state changes (created, updated, deleted, purchased) at `Information` in services. Don't log-and-rethrow: exceptions are logged once, by `ExceptionHandlingMiddleware` (`Warning` for mapped domain exceptions, `Error` for unhandled).
+- Never log personal data (purchaser name/email) or connection strings.
+
 ## Database & migrations
 
 - The schema source of truth is `src/Ripple.Migrations/Scripts/`. `scripts/init.sql` is legacy and should not be edited.
