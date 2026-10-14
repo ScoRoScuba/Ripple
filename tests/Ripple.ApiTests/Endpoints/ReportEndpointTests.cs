@@ -2,18 +2,27 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Moq;
+using Ripple.Api.Endpoints;
+using Ripple.ApiTests.Scaffolding;
 using Ripple.Reports;
 
 namespace Ripple.ApiTests.Endpoints;
 
-public class ReportEndpointTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>
+public class ReportEndpointTests : IClassFixture<CustomWebApplicationFactory<ScenarioStartup<IEndpoint>>>
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    private readonly HttpClient _client;
+    private readonly Mock<IReportService> _reportService;
+
+    public ReportEndpointTests(CustomWebApplicationFactory<ScenarioStartup<IEndpoint>> factory)
+    {
+        _client = factory.CreateClient();
+        _reportService = factory.Services.ResetMock<IReportService>();
+    }
 
     [Fact]
     public async Task GetAllSalesReports_Returns200WithList()
     {
-        factory.MockReportService.Setup(s => s.GetAllEventsReportAsync())
+        _reportService.Setup(s => s.GetAllEventsReportAsync())
             .ReturnsAsync([SampleReport(), SampleReport()]);
 
         var response = await _client.GetAsync("/api/reports/sales");
@@ -27,7 +36,7 @@ public class ReportEndpointTests(TestWebAppFactory factory) : IClassFixture<Test
     public async Task GetEventSalesReport_WhenFound_Returns200()
     {
         var eventId = Guid.NewGuid();
-        factory.MockReportService.Setup(s => s.GetEventReportAsync(eventId))
+        _reportService.Setup(s => s.GetEventReportAsync(eventId))
             .ReturnsAsync(SampleReport(eventId));
 
         var response = await _client.GetAsync($"/api/reports/sales/{eventId}");
@@ -39,7 +48,7 @@ public class ReportEndpointTests(TestWebAppFactory factory) : IClassFixture<Test
     public async Task GetEventSalesReport_WhenNoData_Returns404()
     {
         var eventId = Guid.NewGuid();
-        factory.MockReportService.Setup(s => s.GetEventReportAsync(eventId))
+        _reportService.Setup(s => s.GetEventReportAsync(eventId))
             .ReturnsAsync((EventSalesReport?)null);
 
         var response = await _client.GetAsync($"/api/reports/sales/{eventId}");

@@ -2,20 +2,29 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Moq;
+using Ripple.Api.Endpoints;
+using Ripple.ApiTests.Scaffolding;
 using Ripple.Tickets;
 using Ripple.Domain.Exceptions;
 
 namespace Ripple.ApiTests.Endpoints;
 
-public class TicketEndpointTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>
+public class TicketEndpointTests : IClassFixture<CustomWebApplicationFactory<ScenarioStartup<IEndpoint>>>
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    private readonly HttpClient _client;
+    private readonly Mock<ITicketService> _ticketService;
+
+    public TicketEndpointTests(CustomWebApplicationFactory<ScenarioStartup<IEndpoint>> factory)
+    {
+        _client = factory.CreateClient();
+        _ticketService = factory.Services.ResetMock<ITicketService>();
+    }
 
     [Fact]
     public async Task GetAvailability_WhenFound_Returns200()
     {
         var eventId = Guid.NewGuid();
-        factory.MockTicketService.Setup(s => s.GetAvailabilityAsync(eventId))
+        _ticketService.Setup(s => s.GetAvailabilityAsync(eventId))
             .ReturnsAsync(SampleAvailability(eventId));
 
         var response = await _client.GetAsync($"/api/events/{eventId}/availability");
@@ -29,7 +38,7 @@ public class TicketEndpointTests(TestWebAppFactory factory) : IClassFixture<Test
     public async Task GetAvailability_WhenEventNotFound_Returns404()
     {
         var eventId = Guid.NewGuid();
-        factory.MockTicketService.Setup(s => s.GetAvailabilityAsync(eventId))
+        _ticketService.Setup(s => s.GetAvailabilityAsync(eventId))
             .ThrowsAsync(new EventNotFoundException(eventId));
 
         var response = await _client.GetAsync($"/api/events/{eventId}/availability");
@@ -43,7 +52,7 @@ public class TicketEndpointTests(TestWebAppFactory factory) : IClassFixture<Test
         var eventId = Guid.NewGuid();
         var tierId = Guid.NewGuid();
 
-        factory.MockTicketService.Setup(s => s.PurchaseAsync(eventId, It.IsAny<PurchaseTicketRequest>()))
+        _ticketService.Setup(s => s.PurchaseAsync(eventId, It.IsAny<PurchaseTicketRequest>()))
             .ReturnsAsync(SamplePurchaseResponse(eventId, tierId));
 
         var request = new PurchaseTicketRequest(tierId, 2, "Jane Doe", "jane@example.com");
@@ -58,7 +67,7 @@ public class TicketEndpointTests(TestWebAppFactory factory) : IClassFixture<Test
         var eventId = Guid.NewGuid();
         var tierId = Guid.NewGuid();
 
-        factory.MockTicketService.Setup(s => s.PurchaseAsync(eventId, It.IsAny<PurchaseTicketRequest>()))
+        _ticketService.Setup(s => s.PurchaseAsync(eventId, It.IsAny<PurchaseTicketRequest>()))
             .ThrowsAsync(new InsufficientCapacityException(1, 5));
 
         var request = new PurchaseTicketRequest(tierId, 5, "Jane Doe", "jane@example.com");

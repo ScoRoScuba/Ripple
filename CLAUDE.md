@@ -77,6 +77,8 @@ These are important in this codebase. Follow them in new code and when changing 
 - **Tests must be independent.** Each test sets up its own state and its own Postgres container; do not introduce shared fixtures (`IClassFixture`/`ICollectionFixture`) to save time.
 - **Test our code, not the libraries.** Don't assert on behaviour that belongs to DbUp, Dapper, Npgsql or Postgres itself; assert on the outcomes our code is responsible for.
 - Don't hard-code values that are derived from the codebase (e.g. the number of migration scripts); compute them.
+- **Tests never boot the API's `Program.cs`.** API tests host `ScenarioStartup` (in `tests/Ripple.ApiTests/Scaffolding/`) via `CustomWebApplicationFactory<TStartup>`, wiring only what they exercise — endpoints, validators, exception middleware and mocked services. Register shared wiring through the same extension methods `Program.cs` uses (`AddEndpoints`, `AddValidators`, …) rather than copying it; when you add new wiring to `Program.cs`, put it in an extension method so tests can opt in.
+- Get mocks with `factory.Services.ResetMock<T>()` in the test class constructor so no setup leaks between tests.
 - `Ripple.UnitTests` and `Ripple.ApiTests` use Moq and need no database. `Ripple.DataStoreTests` and `Ripple.MigrationTests` run against a real Postgres via Testcontainers. Repository changes need a `Ripple.DataStoreTests` test: mocked unit tests can't catch SQL or connection-handling bugs.
 - Run the full test suite and confirm it passes before saying a change is done.
 

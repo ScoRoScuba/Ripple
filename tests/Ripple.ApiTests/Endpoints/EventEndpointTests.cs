@@ -2,19 +2,28 @@ using System.Net;
 using System.Net.Http.Json;
 using FluentAssertions;
 using Moq;
+using Ripple.Api.Endpoints;
+using Ripple.ApiTests.Scaffolding;
 using Ripple.Events;
 using Ripple.Domain.Exceptions;
 
 namespace Ripple.ApiTests.Endpoints;
 
-public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestWebAppFactory>
+public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<ScenarioStartup<IEndpoint>>>
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    private readonly HttpClient _client;
+    private readonly Mock<IEventService> _eventService;
+
+    public EventEndpointTests(CustomWebApplicationFactory<ScenarioStartup<IEndpoint>> factory)
+    {
+        _client = factory.CreateClient();
+        _eventService = factory.Services.ResetMock<IEventService>();
+    }
 
     [Fact]
     public async Task GetAllEvents_Returns200WithList()
     {
-        factory.MockEventService.Setup(s => s.GetAllAsync())
+        _eventService.Setup(s => s.GetAllAsync())
             .ReturnsAsync([SampleEventResponse(), SampleEventResponse()]);
 
         var response = await _client.GetAsync("/api/events");
@@ -28,7 +37,7 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
     public async Task GetEvent_WhenFound_Returns200()
     {
         var id = Guid.NewGuid();
-        factory.MockEventService.Setup(s => s.GetByIdAsync(id)).ReturnsAsync(SampleEventResponse(id));
+        _eventService.Setup(s => s.GetByIdAsync(id)).ReturnsAsync(SampleEventResponse(id));
 
         var response = await _client.GetAsync($"/api/events/{id}");
 
@@ -41,7 +50,7 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
     public async Task GetEvent_WhenNotFound_Returns404()
     {
         var id = Guid.NewGuid();
-        factory.MockEventService.Setup(s => s.GetByIdAsync(id)).ThrowsAsync(new EventNotFoundException(id));
+        _eventService.Setup(s => s.GetByIdAsync(id)).ThrowsAsync(new EventNotFoundException(id));
 
         var response = await _client.GetAsync($"/api/events/{id}");
 
@@ -52,7 +61,7 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
     public async Task CreateEvent_WithValidRequest_Returns201()
     {
         var created = SampleEventResponse();
-        factory.MockEventService.Setup(s => s.CreateAsync(It.IsAny<CreateEventRequest>())).ReturnsAsync(created);
+        _eventService.Setup(s => s.CreateAsync(It.IsAny<CreateEventRequest>())).ReturnsAsync(created);
 
         var response = await _client.PostAsJsonAsync("/api/events", SampleCreateRequest());
 
@@ -92,7 +101,7 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
     public async Task UpdateEvent_WithValidRequest_Returns200()
     {
         var id = Guid.NewGuid();
-        factory.MockEventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
+        _eventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
             .ReturnsAsync(SampleEventResponse(id));
 
         var response = await _client.PutAsJsonAsync($"/api/events/{id}", SampleUpdateRequest());
@@ -114,7 +123,7 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
     public async Task UpdateEvent_WhenNotFound_Returns404()
     {
         var id = Guid.NewGuid();
-        factory.MockEventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
+        _eventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
             .ThrowsAsync(new EventNotFoundException(id));
 
         var response = await _client.PutAsJsonAsync($"/api/events/{id}", SampleUpdateRequest());
@@ -126,7 +135,7 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
     public async Task DeleteEvent_WhenFound_Returns204()
     {
         var id = Guid.NewGuid();
-        factory.MockEventService.Setup(s => s.DeleteAsync(id)).Returns(Task.CompletedTask);
+        _eventService.Setup(s => s.DeleteAsync(id)).Returns(Task.CompletedTask);
 
         var response = await _client.DeleteAsync($"/api/events/{id}");
 
@@ -137,7 +146,7 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
     public async Task DeleteEvent_WhenNotFound_Returns404()
     {
         var id = Guid.NewGuid();
-        factory.MockEventService.Setup(s => s.DeleteAsync(id)).ThrowsAsync(new EventNotFoundException(id));
+        _eventService.Setup(s => s.DeleteAsync(id)).ThrowsAsync(new EventNotFoundException(id));
 
         var response = await _client.DeleteAsync($"/api/events/{id}");
 

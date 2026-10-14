@@ -21,9 +21,9 @@ public static class EndpointExtensions
     /// <summary>
     /// Maps every registered <see cref="IEndpoint"/>.
     /// </summary>
-    public static WebApplication MapEndpoints(this WebApplication app)
+    public static IEndpointRouteBuilder MapEndpoints(this IEndpointRouteBuilder app)
     {
-        foreach (var endpoint in app.Services.GetServices<IEndpoint>())
+        foreach (var endpoint in app.ServiceProvider.GetServices<IEndpoint>())
             endpoint.Map(app);
 
         return app;
