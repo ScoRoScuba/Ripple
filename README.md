@@ -243,8 +243,9 @@ A single `ExceptionHandlingMiddleware` catches domain exceptions and maps them t
 | `InsufficientCapacityException` | 409 | Not enough tickets left in the tier |
 | `SalesHistoryConflictException` | 409 | Edit or delete that would remove or invalidate tickets sold |
 | `ArgumentException` | 400 | Business-rule violation, e.g. tier capacities not summing to the total |
+| `BadHttpRequestException` | 400 | Unreadable body, e.g. `"time": "8pm"`; the detail names the field |
 | *(validation failure)* | 422 | Request fails FluentValidation (returned by the endpoint, not the middleware) |
-| Anything else | 500 | Unexpected fault |
+| Anything else | 500 | Unexpected fault. The response carries a generic detail and a `traceId`; the exception itself is only logged, under the same trace id |
 
 ---
 

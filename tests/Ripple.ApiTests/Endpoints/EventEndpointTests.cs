@@ -200,6 +200,22 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         _eventService.Verify(s => s.CreateAsync(It.IsAny<CreateEventRequest>()), Times.Never);
     }
 
+    [Fact]
+    public async Task GetEvent_WhenUnexpectedFailure_Returns500WithoutInternalDetails()
+    {
+        const string internalDetail = "Npgsql: connection to server at 10.0.0.5 failed";
+        var id = Guid.NewGuid();
+        _eventService.Setup(s => s.GetByIdAsync(id)).ThrowsAsync(new InvalidOperationException(internalDetail));
+
+        var response = await _client.GetAsync($"/api/v1/events/{id}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        var body = await response.Content.ReadAsStringAsync();
+        body.Should().NotContain(internalDetail);
+        body.Should().Contain("\"traceId\"");
+    }
+
     private static EventResponse SampleEventResponse(Guid? id = null) => new(
         id ?? Guid.NewGuid(), "Rock Night", "An amazing show", "The Arena",
         DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)), new TimeOnly(20, 0), 200,

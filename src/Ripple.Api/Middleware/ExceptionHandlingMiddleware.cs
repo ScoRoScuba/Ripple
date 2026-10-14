@@ -47,10 +47,13 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
             context.TraceIdentifier);
     }
 
+    // A fault's message is internal (it can carry SQL, connection or stack details), so the client gets a
+    // generic detail and the trace id to quote; the full exception is in the log under the same id.
     // For an unreadable body the useful part is the inner JSON error, which names the offending field
     // (e.g. "Path: $.time"); the outer message only says the body couldn't be read.
-    private static string DetailFor(Exception exception) => exception switch
+    private static string DetailFor(Exception exception, int statusCode) => exception switch
     {
+        _ when statusCode >= StatusCodes.Status500InternalServerError => "An unexpected error occurred.",
         BadHttpRequestException { InnerException: System.Text.Json.JsonException json } => json.Message,
         _ => exception.Message
     };
@@ -64,7 +67,8 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
                 type = $"https://httpstatuses.com/{statusCode}",
                 title,
                 status = statusCode,
-                detail = DetailFor(exception)
+                detail = DetailFor(exception, statusCode),
+                traceId = context.TraceIdentifier
             },
             options: (System.Text.Json.JsonSerializerOptions?)null,
             contentType: "application/problem+json");
