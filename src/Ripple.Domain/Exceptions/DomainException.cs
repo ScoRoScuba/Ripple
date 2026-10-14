@@ -15,6 +15,15 @@ public class PricingTierNotFoundException : DomainException
     public PricingTierNotFoundException(Guid id) : base($"Pricing tier '{id}' was not found.") { }
 }
 
+/// <summary>
+/// A change that would remove or invalidate tickets already sold: deleting an event or pricing tier
+/// that has sales, or reducing a tier's capacity below what has been sold.
+/// </summary>
+public class SalesHistoryConflictException : DomainException
+{
+    public SalesHistoryConflictException(string message) : base(message) { }
+}
+
 public class InsufficientCapacityException : DomainException
 {
     public int Available { get; }

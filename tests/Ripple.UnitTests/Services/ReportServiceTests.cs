@@ -30,14 +30,14 @@ public class ReportServiceTests
 
         var result = await _sut.GetEventReportAsync(eventId);
 
-        // Tiers have different prices, so revenue must be priced per tier:
-        // General 20 x 50 = 1000, VIP 10 x 120 = 1200.
+        // Revenue is what was actually paid, not today's price x tickets sold:
+        // General 20 x 50 = 1000; VIP was repriced from 100 to 120 after 5 sales, so 5x100 + 5x120 = 1100.
         result.Should().NotBeNull();
         result!.TotalTicketsSold.Should().Be(30);
-        result.TotalRevenue.Should().Be(2200m);
+        result.TotalRevenue.Should().Be(2100m);
         result.TierBreakdown.Should().HaveCount(2);
         result.TierBreakdown.Single(t => t.TierName == "General").Revenue.Should().Be(1000m);
-        result.TierBreakdown.Single(t => t.TierName == "VIP").Revenue.Should().Be(1200m);
+        result.TierBreakdown.Single(t => t.TierName == "VIP").Revenue.Should().Be(1100m);
     }
 
     [Fact]
@@ -52,7 +52,7 @@ public class ReportServiceTests
 
         results.Should().HaveCount(2);
         results.Select(r => r.EventId).Should().BeEquivalentTo([eventId1, eventId2]);
-        results.Should().OnlyContain(r => r.TotalTicketsSold == 30 && r.TotalRevenue == 2200m);
+        results.Should().OnlyContain(r => r.TotalTicketsSold == 30 && r.TotalRevenue == 2100m);
     }
 
     private static List<TierSalesSummary> SampleSummaries(Guid eventId) =>
@@ -60,10 +60,10 @@ public class ReportServiceTests
         new(eventId, "Rock Night", "The Arena",
             DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
             new TimeOnly(20, 0), 200,
-            Guid.NewGuid(), "General", 50m, 150, 20),
+            Guid.NewGuid(), "General", 50m, 150, 20, Revenue: 1000m),
         new(eventId, "Rock Night", "The Arena",
             DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
             new TimeOnly(20, 0), 200,
-            Guid.NewGuid(), "VIP", 120m, 50, 10)
+            Guid.NewGuid(), "VIP", 120m, 50, 10, Revenue: 1100m)
     ];
 }

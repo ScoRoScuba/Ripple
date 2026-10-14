@@ -22,6 +22,7 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
     {
         EventNotFoundException or PricingTierNotFoundException => (StatusCodes.Status404NotFound, "Not Found"),
         InsufficientCapacityException => (StatusCodes.Status409Conflict, "Insufficient Capacity"),
+        SalesHistoryConflictException => (StatusCodes.Status409Conflict, "Conflicts With Tickets Sold"),
         ArgumentException => (StatusCodes.Status400BadRequest, "Bad Request"),
         _ => (StatusCodes.Status500InternalServerError, "Internal Server Error")
     };

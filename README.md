@@ -128,7 +128,7 @@ A single `ExceptionHandlingMiddleware` catches domain exceptions and maps them t
 
 **Dapper over EF Core** — Dapper keeps SQL explicit and readable, which is valuable in a domain where query performance and concurrency control (e.g. `FOR UPDATE`) are important. The trade-off is more boilerplate for CRUD operations and manual mapping setup (`MatchNamesWithUnderscores`, `DateOnly`/`TimeOnly` type handlers).
 
-**Update replaces pricing tiers (DELETE + INSERT)** — When an event is updated, all existing tiers are deleted and replaced. This is simple but loses any `tickets_sold` state on tiers. A production system would instead merge existing tiers (match by ID or name) to preserve sales history. This is noted as a known trade-off.
+**Sales history is immutable** — A ticket purchase is a permanent record of what was bought and the price paid. Editing an event updates its pricing tiers *in place*: each tier in the request carries its `id` (tiers without one are added), so sold counts carry over. Edits that would invalidate history are refused with `409 Conflict`: removing a tier that has sales, reducing a tier's capacity below what has been sold, or deleting an event that has sales. Changing a tier's price is allowed and only affects future purchases. The database enforces the same rules (`ON DELETE RESTRICT` from tickets, `CHECK (tickets_sold <= capacity)`), so a purchase landing mid-edit cannot slip through. Sales reports are computed from the ticket records — revenue is quantity × price *paid* — so a later price change never rewrites past revenue. *(An earlier version replaced tiers on every edit, which cascaded and deleted the tickets sold — see migration `0002`.)*
 
 **Tier capacities must sum to `total_capacity`** — `total_capacity` at the event level is enforced to equal the sum of tier capacities on create/update. This keeps availability calculations consistent. An alternative is treating `total_capacity` as a separate hard cap, but that adds complexity without clear benefit for this model.
 
@@ -143,7 +143,7 @@ A single `ExceptionHandlingMiddleware` catches domain exceptions and maps them t
 - **Read replicas** — The availability and reporting queries are read-heavy and can be directed to a replica.
 - **Connection pooling** — `NpgsqlDataSource` already pools connections; configuring `MaxPoolSize` and `MinPoolSize` for expected concurrency would be a next step.
 - **Observability** — Structured logging with correlation IDs is in place (Serilog); next steps are OpenTelemetry tracing/metrics and a `/health` endpoint for liveness/readiness probes.
-- **Soft deletes** — Instead of hard-deleting events, flag them as cancelled so historical ticket data is preserved.
+- **Event cancellation** — Events with sales can't be deleted (their history is protected); a `cancelled` status would let organisers withdraw such events, with refunds recorded as new records rather than by changing or deleting purchases.
 
 ---
 

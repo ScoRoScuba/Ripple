@@ -134,6 +134,33 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
     }
 
     [Fact]
+    public async Task UpdateEvent_WhenChangeConflictsWithTicketsSold_Returns409()
+    {
+        var id = Guid.NewGuid();
+        _eventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
+            .ThrowsAsync(new SalesHistoryConflictException("Pricing tier 'VIP' has 5 tickets sold and cannot be removed."));
+
+        var response = await _client.PutAsJsonAsync($"/api/v1/events/{id}", SampleUpdateRequest());
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
+        (await response.Content.ReadAsStringAsync()).Should().Contain("cannot be removed");
+    }
+
+    [Fact]
+    public async Task DeleteEvent_WhenEventHasTicketsSold_Returns409()
+    {
+        var id = Guid.NewGuid();
+        _eventService.Setup(s => s.DeleteAsync(id))
+            .ThrowsAsync(new SalesHistoryConflictException("Event 'Rock Night' has 15 tickets sold and cannot be deleted."));
+
+        var response = await _client.DeleteAsync($"/api/v1/events/{id}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        (await response.Content.ReadAsStringAsync()).Should().Contain("cannot be deleted");
+    }
+
+    [Fact]
     public async Task DeleteEvent_WhenFound_Returns204()
     {
         var id = Guid.NewGuid();
@@ -171,5 +198,5 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         "Rock Night (Rescheduled)", "An amazing show", "The Arena",
         DateOnly.FromDateTime(DateTime.UtcNow.AddDays(60)),
         new TimeOnly(20, 0), 200,
-        [new("General", 50m, 200)]);
+        [new(Guid.NewGuid(), "General", 50m, 200)]);
 }

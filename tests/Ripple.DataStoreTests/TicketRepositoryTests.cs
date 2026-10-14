@@ -1,4 +1,3 @@
-using Dapper;
 using FluentAssertions;
 using Ripple.Domain.Exceptions;
 using Ripple.DataStore.Repositories;
@@ -89,7 +88,7 @@ public class TicketRepositoryTests : PostgresTestBase
         failures.Should().AllBeOfType<InsufficientCapacityException>(
             "running out of tickets must be reported as insufficient capacity, not a database error");
         (await TicketsSoldAsync(evt.Id)).Should().Be(capacity);
-        (await TicketRowCountAsync(evt.Id)).Should().Be(capacity);
+        (await TicketRecordsAsync(evt.Id)).Purchases.Should().Be(capacity);
     }
 
     [Fact]
@@ -102,17 +101,5 @@ public class TicketRepositoryTests : PostgresTestBase
             .PurchaseAsync(evt.Id, Guid.NewGuid(), 1, "Alice", "alice@example.com", 25m);
 
         await purchase.Should().ThrowAsync<PricingTierNotFoundException>();
-    }
-
-    private async Task<int> TicketRowCountAsync(Guid eventId)
-    {
-        using var conn = ConnectionFactory.CreateConnection();
-        return await conn.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM tickets WHERE event_id = @EventId", new { EventId = eventId });
-    }
-
-    private async Task<int> TicketsSoldAsync(Guid eventId)
-    {
-        var stored = await new EventRepository(ConnectionFactory).GetByIdWithTiersAsync(eventId);
-        return stored!.PricingTiers.Sum(t => t.TicketsSold);
     }
 }

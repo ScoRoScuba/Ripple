@@ -22,10 +22,7 @@ public class EventService(IEventRepository repository, ILogger<EventService> log
 
     public async Task<EventResponse> CreateAsync(CreateEventRequest request)
     {
-        var tierCapacitySum = request.PricingTiers.Sum(t => t.Capacity);
-        if (tierCapacitySum != request.TotalCapacity)
-            throw new ArgumentException(
-                $"Sum of tier capacities ({tierCapacitySum}) must equal total capacity ({request.TotalCapacity}).");
+        EnsureTierCapacitiesMatchTotal(request.PricingTiers.Sum(t => t.Capacity), request.TotalCapacity);
 
         var eventId = Guid.NewGuid();
         var @event = new Event
@@ -64,10 +61,8 @@ public class EventService(IEventRepository repository, ILogger<EventService> log
         var existing = await repository.GetByIdWithTiersAsync(id);
         if (existing is null) throw new EventNotFoundException(id);
 
-        var tierCapacitySum = request.PricingTiers.Sum(t => t.Capacity);
-        if (tierCapacitySum != request.TotalCapacity)
-            throw new ArgumentException(
-                $"Sum of tier capacities ({tierCapacitySum}) must equal total capacity ({request.TotalCapacity}).");
+        EnsureTierCapacitiesMatchTotal(request.PricingTiers.Sum(t => t.Capacity), request.TotalCapacity);
+        var tiers = ApplyTierChanges(existing, request.PricingTiers);
 
         existing.Name = request.Name;
         existing.Description = request.Description;
@@ -77,20 +72,10 @@ public class EventService(IEventRepository repository, ILogger<EventService> log
         existing.TotalCapacity = request.TotalCapacity;
         existing.UpdatedAt = DateTime.UtcNow;
 
-        var tiers = request.PricingTiers.Select(t => new PricingTier
-        {
-            Id = Guid.NewGuid(),
-            EventId = id,
-            Name = t.Name,
-            Price = t.Price,
-            Capacity = t.Capacity,
-            TicketsSold = 0
-        }).ToList();
-
         await repository.UpdateAsync(existing, tiers);
         existing.PricingTiers = tiers;
 
-        logger.LogInformation("[EventService]:[UpdateAsync] - Updated event {EventId}; pricing tiers replaced ({TierCount})",
+        logger.LogInformation("[EventService]:[UpdateAsync] - Updated event {EventId} with {TierCount} pricing tiers",
             id, tiers.Count);
 
         return MapToResponse(existing);
@@ -98,10 +83,67 @@ public class EventService(IEventRepository repository, ILogger<EventService> log
 
     public async Task DeleteAsync(Guid id)
     {
-        if (!await repository.ExistsAsync(id)) throw new EventNotFoundException(id);
+        var existing = await repository.GetByIdWithTiersAsync(id);
+        if (existing is null) throw new EventNotFoundException(id);
+
+        var ticketsSold = existing.PricingTiers.Sum(t => t.TicketsSold);
+        if (ticketsSold > 0)
+            throw new SalesHistoryConflictException(
+                $"Event '{existing.Name}' has {ticketsSold} tickets sold and cannot be deleted.");
+
         await repository.DeleteAsync(id);
 
         logger.LogInformation("[EventService]:[DeleteAsync] - Deleted event {EventId}", id);
+    }
+
+    private static void EnsureTierCapacitiesMatchTotal(int tierCapacitySum, int totalCapacity)
+    {
+        if (tierCapacitySum != totalCapacity)
+            throw new ArgumentException(
+                $"Sum of tier capacities ({tierCapacitySum}) must equal total capacity ({totalCapacity}).");
+    }
+
+    /// <summary>
+    /// Works out the event's new set of tiers without disturbing sales history: requested tiers with an
+    /// id update that tier in place (keeping its tickets sold), those without an id are added, and
+    /// existing tiers left out are removed — unless they have sales.
+    /// </summary>
+    private static List<PricingTier> ApplyTierChanges(Event existing, IReadOnlyCollection<UpdatePricingTierRequest> requested)
+    {
+        var duplicateId = requested.Where(t => t.Id is not null).GroupBy(t => t.Id).FirstOrDefault(g => g.Count() > 1)?.Key;
+        if (duplicateId is not null)
+            throw new ArgumentException($"Pricing tier '{duplicateId}' appears more than once.");
+
+        var removedWithSales = existing.PricingTiers
+            .FirstOrDefault(t => t.TicketsSold > 0 && requested.All(r => r.Id != t.Id));
+        if (removedWithSales is not null)
+            throw new SalesHistoryConflictException(
+                $"Pricing tier '{removedWithSales.Name}' has {removedWithSales.TicketsSold} tickets sold and cannot be removed.");
+
+        var current = existing.PricingTiers.ToDictionary(t => t.Id);
+
+        return requested.Select(change =>
+        {
+            if (change.Id is null)
+                return new PricingTier
+                {
+                    Id = Guid.NewGuid(), EventId = existing.Id,
+                    Name = change.Name, Price = change.Price, Capacity = change.Capacity, TicketsSold = 0
+                };
+
+            if (!current.TryGetValue(change.Id.Value, out var tier))
+                throw new PricingTierNotFoundException(change.Id.Value);
+
+            if (change.Capacity < tier.TicketsSold)
+                throw new SalesHistoryConflictException(
+                    $"Pricing tier '{tier.Name}' cannot be reduced to {change.Capacity}: {tier.TicketsSold} tickets are already sold.");
+
+            return new PricingTier
+            {
+                Id = tier.Id, EventId = existing.Id,
+                Name = change.Name, Price = change.Price, Capacity = change.Capacity, TicketsSold = tier.TicketsSold
+            };
+        }).ToList();
     }
 
     private static EventResponse MapToResponse(Event evt) => new(

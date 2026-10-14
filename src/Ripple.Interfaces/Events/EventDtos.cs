@@ -21,7 +21,18 @@ public record UpdateEventRequest(
     DateOnly Date,
     TimeOnly Time,
     int TotalCapacity,
-    List<CreatePricingTierRequest> PricingTiers);
+    List<UpdatePricingTierRequest> PricingTiers);
+
+/// <summary>
+/// A pricing tier in an event update. With an <see cref="Id"/>, the existing tier is updated in place
+/// (its sales are kept); without one, a new tier is added. Existing tiers left out are removed,
+/// which is refused if they have sales.
+/// </summary>
+public record UpdatePricingTierRequest(
+    Guid? Id,
+    string Name,
+    decimal Price,
+    int Capacity);
 
 public record EventResponse(
     Guid Id,

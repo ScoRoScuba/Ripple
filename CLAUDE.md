@@ -71,6 +71,7 @@ These are important in this codebase. Follow them in new code and when changing 
 ## Database & migrations
 
 - The schema source of truth is `src/Ripple.Migrations/Scripts/`. Don't add standalone schema SQL elsewhere.
+- **Sales history is immutable.** Ticket rows are never updated or deleted, and nothing may delete a tier or event that has tickets (enforced by `ON DELETE RESTRICT`; never reintroduce `CASCADE` from `tickets`). Only ticket purchases write `pricing_tiers.tickets_sold`; event updates must never write it. Edits that would invalidate history throw `SalesHistoryConflictException` (409). Reports are computed from `tickets` (quantity × `unit_price` paid), never from tier price × tickets_sold.
 - Migration scripts are append-only and numbered `NNNN_Description.sql`. Never modify a script that has already been committed; add a new one.
 - Keep SQL explicit in the Dapper repositories (no query builders). Concurrency-sensitive writes use `SELECT … FOR UPDATE` inside a transaction.
 

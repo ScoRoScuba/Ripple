@@ -15,6 +15,7 @@ public class UpdateEventEndpoint : IEndpoint
             .Produces<EventResponse>()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
             .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
     private static async Task<IResult> Handle(

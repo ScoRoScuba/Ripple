@@ -1,4 +1,6 @@
+using Dapper;
 using DbUp.Engine.Output;
+using Ripple.DataStore.Repositories;
 using Ripple.Data;
 using Ripple.Domain.Entities;
 using Ripple.DataStore.Data;
@@ -29,6 +31,22 @@ public abstract class PostgresTestBase : IAsyncLifetime
     }
 
     public async Task DisposeAsync() => await _postgres.DisposeAsync();
+
+    /// <summary>The tiers' running tickets_sold counter for the event.</summary>
+    protected async Task<int> TicketsSoldAsync(Guid eventId)
+    {
+        var stored = await new EventRepository(ConnectionFactory).GetByIdWithTiersAsync(eventId);
+        return stored!.PricingTiers.Sum(t => t.TicketsSold);
+    }
+
+    /// <summary>The ticket purchase records for the event: (purchases, tickets).</summary>
+    protected async Task<(int Purchases, int Tickets)> TicketRecordsAsync(Guid eventId)
+    {
+        using var conn = ConnectionFactory.CreateConnection();
+        return await conn.QuerySingleAsync<(int, int)>(
+            "SELECT COUNT(*)::int, COALESCE(SUM(quantity), 0)::int FROM tickets WHERE event_id = @EventId",
+            new { EventId = eventId });
+    }
 
     protected static (Event Event, List<PricingTier> Tiers) NewEvent(params (string Name, decimal Price, int Capacity)[] tiers)
     {

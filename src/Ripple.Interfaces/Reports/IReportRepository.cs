@@ -17,4 +17,5 @@ public record TierSalesSummary(
     string TierName,
     decimal TierPrice,
     int TierCapacity,
-    int TicketsSold);
+    int TicketsSold,
+    decimal Revenue);

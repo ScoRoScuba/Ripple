@@ -27,7 +27,7 @@ public class ReportService(IReportRepository repository) : IReportService
             s.TierPrice,
             s.TierCapacity,
             s.TicketsSold,
-            s.TierPrice * s.TicketsSold)).ToList();
+            s.Revenue)).ToList();
 
         return new EventSalesReport(
             first.EventId,

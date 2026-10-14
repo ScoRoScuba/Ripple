@@ -123,6 +123,46 @@ public class MigrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Tiers_And_Events_With_Tickets_Cannot_Be_Deleted()
+    {
+        MigrationRunner.Run(_postgres.GetConnectionString());
+
+        await using var conn = new NpgsqlConnection(_postgres.GetConnectionString());
+        await conn.OpenAsync();
+
+        var eventId = await InsertEventAsync(conn);
+        await using (var insert = new NpgsqlCommand(
+            @"WITH tier AS (
+                  INSERT INTO pricing_tiers (event_id, name, price, capacity, tickets_sold)
+                  VALUES (@EventId, 'GA', 10.00, 100, 1) RETURNING id)
+              INSERT INTO tickets (event_id, pricing_tier_id, purchaser_name, purchaser_email, quantity, unit_price)
+              SELECT @EventId, id, 'Alice', 'alice@example.com', 1, 10.00 FROM tier",
+            conn))
+        {
+            insert.Parameters.AddWithValue("EventId", eventId);
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        foreach (var sql in new[]
+                 {
+                     "DELETE FROM pricing_tiers WHERE event_id = @EventId",
+                     "DELETE FROM events WHERE id = @EventId"
+                 })
+        {
+            var ex = await Assert.ThrowsAsync<PostgresException>(async () =>
+            {
+                await using var delete = new NpgsqlCommand(sql, conn);
+                delete.Parameters.AddWithValue("EventId", eventId);
+                await delete.ExecuteNonQueryAsync();
+            });
+            Assert.Equal(PostgresErrorCodes.ForeignKeyViolation, ex.SqlState);
+        }
+
+        await using var count = new NpgsqlCommand("SELECT COUNT(*) FROM tickets", conn);
+        Assert.Equal(1L, await count.ExecuteScalarAsync());
+    }
+
+    [Fact]
     public async Task Tickets_Table_Enforces_FK_To_PricingTier()
     {
         MigrationRunner.Run(_postgres.GetConnectionString());

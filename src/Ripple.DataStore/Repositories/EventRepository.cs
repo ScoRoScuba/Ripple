@@ -1,4 +1,6 @@
 using Dapper;
+using Npgsql;
+using Ripple.Domain.Exceptions;
 using Ripple.Data;
 using Ripple.Events;
 using Ripple.Domain.Entities;
@@ -79,15 +81,31 @@ public class EventRepository(IDbConnectionFactory connectionFactory) : IEventRep
               WHERE id = @Id",
             @event, tx);
 
-        await conn.ExecuteAsync("DELETE FROM pricing_tiers WHERE event_id = @Id", new { @event.Id }, tx);
-
         var tierList = tiers.ToList();
-        if (tierList.Count > 0)
+
+        try
         {
+            // Remove only the tiers no longer wanted. The tickets foreign key (ON DELETE RESTRICT)
+            // refuses this if any of them has sales.
+            await conn.ExecuteAsync(
+                "DELETE FROM pricing_tiers WHERE event_id = @EventId AND NOT (id = ANY(@KeepIds))",
+                new { EventId = @event.Id, KeepIds = tierList.Select(t => t.Id).ToArray() }, tx);
+
+            // Add new tiers and update kept ones in place. tickets_sold is deliberately never written:
+            // it is owned by ticket purchases, so sales recorded since the event was read are preserved.
             await conn.ExecuteAsync(
                 @"INSERT INTO pricing_tiers (id, event_id, name, price, capacity, tickets_sold)
-                  VALUES (@Id, @EventId, @Name, @Price, @Capacity, @TicketsSold)",
+                  VALUES (@Id, @EventId, @Name, @Price, @Capacity, 0)
+                  ON CONFLICT (id) DO UPDATE
+                  SET name = EXCLUDED.name, price = EXCLUDED.price, capacity = EXCLUDED.capacity
+                  WHERE pricing_tiers.event_id = EXCLUDED.event_id",
                 tierList, tx);
+        }
+        catch (PostgresException ex) when (IsSalesHistoryViolation(ex))
+        {
+            // The service checks these rules first; this covers tickets sold while the update was in flight.
+            throw new SalesHistoryConflictException(
+                "The change conflicts with tickets that have been sold for this event. Reload the event and try again.");
         }
 
         tx.Commit();
@@ -96,12 +114,20 @@ public class EventRepository(IDbConnectionFactory connectionFactory) : IEventRep
     public async Task DeleteAsync(Guid id)
     {
         using var conn = connectionFactory.CreateConnection();
-        await conn.ExecuteAsync("DELETE FROM events WHERE id = @Id", new { Id = id });
+
+        try
+        {
+            await conn.ExecuteAsync("DELETE FROM events WHERE id = @Id", new { Id = id });
+        }
+        catch (PostgresException ex) when (IsSalesHistoryViolation(ex))
+        {
+            throw new SalesHistoryConflictException($"Event '{id}' has tickets sold and cannot be deleted.");
+        }
     }
 
-    public async Task<bool> ExistsAsync(Guid id)
-    {
-        using var conn = connectionFactory.CreateConnection();
-        return await conn.ExecuteScalarAsync<bool>("SELECT EXISTS(SELECT 1 FROM events WHERE id = @Id)", new { Id = id });
-    }
+    // Foreign key violation: deleting a tier/event that tickets reference.
+    // Check violation on chk_tickets_le_capacity: capacity reduced below tickets sold.
+    private static bool IsSalesHistoryViolation(PostgresException ex) =>
+        ex.SqlState == PostgresErrorCodes.ForeignKeyViolation ||
+        (ex.SqlState == PostgresErrorCodes.CheckViolation && ex.ConstraintName == "chk_tickets_le_capacity");
 }

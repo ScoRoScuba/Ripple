@@ -109,6 +109,16 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       },
@@ -202,6 +212,16 @@
           },
           "404": {
             "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -814,8 +834,30 @@
           "pricingTiers": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CreatePricingTierRequest"
+              "$ref": "#/components/schemas/UpdatePricingTierRequest"
             }
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdatePricingTierRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "name": {
+            "type": "string"
+          },
+          "price": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "capacity": {
+            "type": "integer",
+            "format": "int32"
           }
         },
         "additionalProperties": false

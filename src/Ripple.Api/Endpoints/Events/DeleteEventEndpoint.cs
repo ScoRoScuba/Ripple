@@ -12,7 +12,8 @@ public class DeleteEventEndpoint : IEndpoint
             .WithName("DeleteEvent")
             .WithSummary("Delete an event")
             .Produces(StatusCodes.Status204NoContent)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict);
 
     private static async Task<IResult> Handle(Guid id, IEventService service)
     {
