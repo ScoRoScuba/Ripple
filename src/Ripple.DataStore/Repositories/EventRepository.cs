@@ -47,7 +47,6 @@ public class EventRepository(IDbConnectionFactory connectionFactory) : IEventRep
     public async Task<Event> CreateAsync(Event @event, IEnumerable<PricingTier> tiers)
     {
         using var conn = connectionFactory.CreateConnection();
-        conn.Open();
         using var tx = conn.BeginTransaction();
 
         await conn.ExecuteAsync(
@@ -72,7 +71,6 @@ public class EventRepository(IDbConnectionFactory connectionFactory) : IEventRep
     public async Task UpdateAsync(Event @event, IEnumerable<PricingTier> tiers)
     {
         using var conn = connectionFactory.CreateConnection();
-        conn.Open();
         using var tx = conn.BeginTransaction();
 
         await conn.ExecuteAsync(

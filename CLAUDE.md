@@ -76,7 +76,7 @@ These are important in this codebase. Follow them in new code and when changing 
 - **Tests must be independent.** Each test sets up its own state and its own Postgres container; do not introduce shared fixtures (`IClassFixture`/`ICollectionFixture`) to save time.
 - **Test our code, not the libraries.** Don't assert on behaviour that belongs to DbUp, Dapper, Npgsql or Postgres itself; assert on the outcomes our code is responsible for.
 - Don't hard-code values that are derived from the codebase (e.g. the number of migration scripts); compute them.
-- `Ripple.UnitTests` and `Ripple.ApiTests` use Moq and need no database. `Ripple.MigrationTests` runs against a real Postgres via Testcontainers.
+- `Ripple.UnitTests` and `Ripple.ApiTests` use Moq and need no database. `Ripple.DataStoreTests` and `Ripple.MigrationTests` run against a real Postgres via Testcontainers. Repository changes need a `Ripple.DataStoreTests` test: mocked unit tests can't catch SQL or connection-handling bugs.
 - Run the full test suite and confirm it passes before saying a change is done.
 
 ## Workflow

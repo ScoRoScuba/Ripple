@@ -18,7 +18,6 @@ public class TicketRepository(IDbConnectionFactory connectionFactory) : ITicketR
         decimal unitPrice)
     {
         using var conn = connectionFactory.CreateConnection();
-        conn.Open();
         using var tx = conn.BeginTransaction(IsolationLevel.ReadCommitted);
 
         // Lock the tier row to prevent concurrent overselling
