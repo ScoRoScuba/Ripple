@@ -1,10 +1,14 @@
 using System.Reflection;
+using Asp.Versioning;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Ripple.Api.Versioning;
 
 namespace Ripple.Api.Endpoints;
 
 public static class EndpointExtensions
 {
+    private const string VersionedRoutePrefix = "api/v{version:apiVersion}";
+
     /// <summary>
     /// Registers every concrete <see cref="IEndpoint"/> in the assembly with DI.
     /// </summary>
@@ -19,12 +23,20 @@ public static class EndpointExtensions
     }
 
     /// <summary>
-    /// Maps every registered <see cref="IEndpoint"/>.
+    /// Maps every registered <see cref="IEndpoint"/> under the versioned route group
+    /// <c>/api/v{version}</c>. Requires <see cref="ApiVersioningExtensions.AddVersioning"/>.
     /// </summary>
     public static IEndpointRouteBuilder MapEndpoints(this IEndpointRouteBuilder app)
     {
+        var versionSet = app.NewApiVersionSet();
+        foreach (var version in ApiVersions.All)
+            versionSet.HasApiVersion(version);
+
+        var versionedApi = app.MapGroup(VersionedRoutePrefix)
+            .WithApiVersionSet(versionSet.ReportApiVersions().Build());
+
         foreach (var endpoint in app.ServiceProvider.GetServices<IEndpoint>())
-            endpoint.Map(app);
+            endpoint.Map(versionedApi);
 
         return app;
     }

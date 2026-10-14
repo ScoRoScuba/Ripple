@@ -27,7 +27,7 @@ public class TicketEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         _ticketService.Setup(s => s.GetAvailabilityAsync(eventId))
             .ReturnsAsync(SampleAvailability(eventId));
 
-        var response = await _client.GetAsync($"/api/events/{eventId}/availability");
+        var response = await _client.GetAsync($"/api/v1/events/{eventId}/availability");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<EventAvailabilityResponse>();
@@ -41,7 +41,7 @@ public class TicketEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         _ticketService.Setup(s => s.GetAvailabilityAsync(eventId))
             .ThrowsAsync(new EventNotFoundException(eventId));
 
-        var response = await _client.GetAsync($"/api/events/{eventId}/availability");
+        var response = await _client.GetAsync($"/api/v1/events/{eventId}/availability");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -56,7 +56,7 @@ public class TicketEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
             .ReturnsAsync(SamplePurchaseResponse(eventId, tierId));
 
         var request = new PurchaseTicketRequest(tierId, 2, "Jane Doe", "jane@example.com");
-        var response = await _client.PostAsJsonAsync($"/api/events/{eventId}/tickets", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/events/{eventId}/tickets", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
     }
@@ -71,7 +71,7 @@ public class TicketEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
             .ThrowsAsync(new InsufficientCapacityException(1, 5));
 
         var request = new PurchaseTicketRequest(tierId, 5, "Jane Doe", "jane@example.com");
-        var response = await _client.PostAsJsonAsync($"/api/events/{eventId}/tickets", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/events/{eventId}/tickets", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.Conflict);
     }
@@ -82,7 +82,7 @@ public class TicketEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         var eventId = Guid.NewGuid();
         var request = new PurchaseTicketRequest(Guid.NewGuid(), 2, "Jane Doe", "not-an-email");
 
-        var response = await _client.PostAsJsonAsync($"/api/events/{eventId}/tickets", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/events/{eventId}/tickets", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -93,7 +93,7 @@ public class TicketEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         var eventId = Guid.NewGuid();
         var request = new PurchaseTicketRequest(Guid.NewGuid(), 0, "Jane Doe", "jane@example.com");
 
-        var response = await _client.PostAsJsonAsync($"/api/events/{eventId}/tickets", request);
+        var response = await _client.PostAsJsonAsync($"/api/v1/events/{eventId}/tickets", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }

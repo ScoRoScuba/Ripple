@@ -3,6 +3,7 @@ using Ripple.Api.Endpoints;
 using Ripple.Api.Logging;
 using Ripple.Api.Middleware;
 using Ripple.Api.Validators;
+using Ripple.Api.Versioning;
 using Ripple.DataStore;
 using Ripple.Services;
 using Serilog;
@@ -22,6 +23,7 @@ try
         .AddDataStore(connectionString)
         .AddServices()
         .AddValidators()
+        .AddVersioning()
         .AddEndpoints(typeof(IEndpoint).Assembly)
         .AddApiDocumentation();
 

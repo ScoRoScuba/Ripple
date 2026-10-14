@@ -1,12 +1,14 @@
 using FluentValidation;
 using Ripple.Tickets;
+using Ripple.Api.Versioning;
 
 namespace Ripple.Api.Endpoints.Tickets;
 
 public class PurchaseTicketsEndpoint : IEndpoint
 {
     public void Map(IEndpointRouteBuilder app) =>
-        app.MapPost("/api/events/{eventId:guid}/tickets", Handle)
+        app.MapPost("events/{eventId:guid}/tickets", Handle)
+            .MapToApiVersion(ApiVersions.V1)
             .WithTags("Tickets")
             .WithName("PurchaseTickets")
             .WithSummary("Purchase tickets for an event");
@@ -22,6 +24,6 @@ public class PurchaseTicketsEndpoint : IEndpoint
             return Results.ValidationProblem(validation.ToDictionary(), statusCode: StatusCodes.Status422UnprocessableEntity);
 
         var result = await service.PurchaseAsync(eventId, request);
-        return Results.Created($"/api/events/{eventId}/tickets/{result.TicketId}", result);
+        return Results.Created($"/api/v1/events/{eventId}/tickets/{result.TicketId}", result);
     }
 }

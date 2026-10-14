@@ -1,12 +1,14 @@
 using FluentValidation;
 using Ripple.Events;
+using Ripple.Api.Versioning;
 
 namespace Ripple.Api.Endpoints.Events;
 
 public class CreateEventEndpoint : IEndpoint
 {
     public void Map(IEndpointRouteBuilder app) =>
-        app.MapPost("/api/events", Handle)
+        app.MapPost("events", Handle)
+            .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName("CreateEvent")
             .WithSummary("Create a new event");

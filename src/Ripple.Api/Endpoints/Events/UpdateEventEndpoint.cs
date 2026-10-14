@@ -1,12 +1,14 @@
 using FluentValidation;
 using Ripple.Events;
+using Ripple.Api.Versioning;
 
 namespace Ripple.Api.Endpoints.Events;
 
 public class UpdateEventEndpoint : IEndpoint
 {
     public void Map(IEndpointRouteBuilder app) =>
-        app.MapPut("/api/events/{id:guid}", Handle)
+        app.MapPut("events/{id:guid}", Handle)
+            .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName("UpdateEvent")
             .WithSummary("Replace an event");

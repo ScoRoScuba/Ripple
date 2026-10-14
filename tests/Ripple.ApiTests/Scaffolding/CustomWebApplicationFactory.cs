@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Ripple.Api.Endpoints;
 
 namespace Ripple.ApiTests.Scaffolding;
 
@@ -19,8 +20,12 @@ public class CustomWebApplicationFactory<TStartup> : WebApplicationFactory<TStar
                 .UseStartup<TStartup>()
                 .UseTestServer());
 
-    // The factory guesses the content root as <solution>/<assembly name>, which doesn't exist
-    // because test projects live under tests/. Nothing is served from disk, so use the output folder.
     protected override void ConfigureWebHost(IWebHostBuilder builder) =>
-        builder.UseContentRoot(AppContext.BaseDirectory);
+        builder
+            // The factory guesses the content root as <solution>/<assembly name>, which doesn't exist
+            // because test projects live under tests/. Nothing is served from disk, so use the output folder.
+            .UseContentRoot(AppContext.BaseDirectory)
+            // Present as the API, not the test assembly, so framework discovery that starts from the
+            // application name (e.g. MVC application parts used by the API explorer) matches production.
+            .UseSetting(WebHostDefaults.ApplicationKey, typeof(IEndpoint).Assembly.GetName().Name);
 }

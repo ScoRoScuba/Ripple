@@ -1,4 +1,5 @@
 using Ripple.Events;
+using Ripple.Api.Versioning;
 
 namespace Ripple.Api.Endpoints.Events;
 
@@ -7,7 +8,8 @@ public class GetEventEndpoint : IEndpoint
     public const string Name = "GetEvent";
 
     public void Map(IEndpointRouteBuilder app) =>
-        app.MapGet("/api/events/{id:guid}", Handle)
+        app.MapGet("events/{id:guid}", Handle)
+            .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName(Name)
             .WithSummary("Get event by ID");

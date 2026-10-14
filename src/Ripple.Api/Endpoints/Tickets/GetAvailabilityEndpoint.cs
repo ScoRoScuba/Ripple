@@ -1,11 +1,13 @@
 using Ripple.Tickets;
+using Ripple.Api.Versioning;
 
 namespace Ripple.Api.Endpoints.Tickets;
 
 public class GetAvailabilityEndpoint : IEndpoint
 {
     public void Map(IEndpointRouteBuilder app) =>
-        app.MapGet("/api/events/{eventId:guid}/availability", Handle)
+        app.MapGet("events/{eventId:guid}/availability", Handle)
+            .MapToApiVersion(ApiVersions.V1)
             .WithTags("Tickets")
             .WithName("GetAvailability")
             .WithSummary("Get ticket availability for an event");

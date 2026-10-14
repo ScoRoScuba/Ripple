@@ -11,7 +11,7 @@ public static class ApiDocumentationExtensions
         return services;
     }
 
-    public static WebApplication UseApiDocumentation(this WebApplication app)
+    public static IApplicationBuilder UseApiDocumentation(this IApplicationBuilder app)
     {
         app.UseSwagger();
         app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", $"{Title} v1"));

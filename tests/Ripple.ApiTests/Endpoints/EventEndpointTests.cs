@@ -26,7 +26,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         _eventService.Setup(s => s.GetAllAsync())
             .ReturnsAsync([SampleEventResponse(), SampleEventResponse()]);
 
-        var response = await _client.GetAsync("/api/events");
+        var response = await _client.GetAsync("/api/v1/events");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<List<EventResponse>>();
@@ -39,7 +39,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         var id = Guid.NewGuid();
         _eventService.Setup(s => s.GetByIdAsync(id)).ReturnsAsync(SampleEventResponse(id));
 
-        var response = await _client.GetAsync($"/api/events/{id}");
+        var response = await _client.GetAsync($"/api/v1/events/{id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<EventResponse>();
@@ -52,7 +52,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         var id = Guid.NewGuid();
         _eventService.Setup(s => s.GetByIdAsync(id)).ThrowsAsync(new EventNotFoundException(id));
 
-        var response = await _client.GetAsync($"/api/events/{id}");
+        var response = await _client.GetAsync($"/api/v1/events/{id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -63,10 +63,10 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         var created = SampleEventResponse();
         _eventService.Setup(s => s.CreateAsync(It.IsAny<CreateEventRequest>())).ReturnsAsync(created);
 
-        var response = await _client.PostAsJsonAsync("/api/events", SampleCreateRequest());
+        var response = await _client.PostAsJsonAsync("/api/v1/events", SampleCreateRequest());
 
         response.StatusCode.Should().Be(HttpStatusCode.Created);
-        response.Headers.Location.Should().NotBeNull();
+        response.Headers.Location!.AbsolutePath.Should().Be($"/api/v1/events/{created.Id}");
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
             new TimeOnly(20, 0), 100,
             [new("General", 50m, 100)]);
 
-        var response = await _client.PostAsJsonAsync("/api/events", request);
+        var response = await _client.PostAsJsonAsync("/api/v1/events", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -92,7 +92,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
             new TimeOnly(20, 0), 100,
             [new("General", 50m, 100)]);
 
-        var response = await _client.PostAsJsonAsync("/api/events", request);
+        var response = await _client.PostAsJsonAsync("/api/v1/events", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -104,7 +104,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         _eventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
             .ReturnsAsync(SampleEventResponse(id));
 
-        var response = await _client.PutAsJsonAsync($"/api/events/{id}", SampleUpdateRequest());
+        var response = await _client.PutAsJsonAsync($"/api/v1/events/{id}", SampleUpdateRequest());
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -114,7 +114,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
     {
         var request = SampleUpdateRequest() with { PricingTiers = [] };
 
-        var response = await _client.PutAsJsonAsync($"/api/events/{Guid.NewGuid()}", request);
+        var response = await _client.PutAsJsonAsync($"/api/v1/events/{Guid.NewGuid()}", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
     }
@@ -126,7 +126,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         _eventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
             .ThrowsAsync(new EventNotFoundException(id));
 
-        var response = await _client.PutAsJsonAsync($"/api/events/{id}", SampleUpdateRequest());
+        var response = await _client.PutAsJsonAsync($"/api/v1/events/{id}", SampleUpdateRequest());
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
@@ -137,7 +137,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         var id = Guid.NewGuid();
         _eventService.Setup(s => s.DeleteAsync(id)).Returns(Task.CompletedTask);
 
-        var response = await _client.DeleteAsync($"/api/events/{id}");
+        var response = await _client.DeleteAsync($"/api/v1/events/{id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
@@ -148,7 +148,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         var id = Guid.NewGuid();
         _eventService.Setup(s => s.DeleteAsync(id)).ThrowsAsync(new EventNotFoundException(id));
 
-        var response = await _client.DeleteAsync($"/api/events/{id}");
+        var response = await _client.DeleteAsync($"/api/v1/events/{id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }

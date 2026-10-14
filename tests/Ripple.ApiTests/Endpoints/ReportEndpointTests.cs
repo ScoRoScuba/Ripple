@@ -25,7 +25,7 @@ public class ReportEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         _reportService.Setup(s => s.GetAllEventsReportAsync())
             .ReturnsAsync([SampleReport(), SampleReport()]);
 
-        var response = await _client.GetAsync("/api/reports/sales");
+        var response = await _client.GetAsync("/api/v1/reports/sales");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var body = await response.Content.ReadFromJsonAsync<List<EventSalesReport>>();
@@ -39,7 +39,7 @@ public class ReportEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         _reportService.Setup(s => s.GetEventReportAsync(eventId))
             .ReturnsAsync(SampleReport(eventId));
 
-        var response = await _client.GetAsync($"/api/reports/sales/{eventId}");
+        var response = await _client.GetAsync($"/api/v1/reports/sales/{eventId}");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
     }
@@ -51,7 +51,7 @@ public class ReportEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         _reportService.Setup(s => s.GetEventReportAsync(eventId))
             .ReturnsAsync((EventSalesReport?)null);
 
-        var response = await _client.GetAsync($"/api/reports/sales/{eventId}");
+        var response = await _client.GetAsync($"/api/v1/reports/sales/{eventId}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }

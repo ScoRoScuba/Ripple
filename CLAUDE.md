@@ -30,6 +30,7 @@ Ripple.Migrations   ← DbUp console app; SQL scripts embedded from Scripts/.
 
 - `Ripple.Services` must not reference Dapper, Npgsql or any I/O library.
 - **One endpoint per file.** Each endpoint is a class implementing `IEndpoint` in `Ripple.Api/Endpoints/<Feature>/`, named `<Action>Endpoint` (e.g. `CreateEventEndpoint`), with its route mapping in `Map` and its handler in a private static `Handle` method. Endpoints are discovered and registered automatically; don't map routes in `Program.cs`.
+- **API versioning** is URL-segment (`/api/v1/...`). `Map` receives the versioned `/api/v{version}` group: map routes relative to it (`"events/{id:guid}"`, never `"/api/..."`) and always declare the version with `.MapToApiVersion(ApiVersions.V1)`. Supported versions live only in `Ripple.Api/Versioning/ApiVersions.cs`. Never change a released version's contract; add a new version instead.
 - Input validation lives in FluentValidation validators in `Ripple.Api`, not in services.
 - Domain exceptions map to HTTP status codes in `ExceptionHandlingMiddleware`; add new mappings there.
 

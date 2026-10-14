@@ -1,11 +1,13 @@
 using Ripple.Reports;
+using Ripple.Api.Versioning;
 
 namespace Ripple.Api.Endpoints.Reports;
 
 public class GetEventSalesReportEndpoint : IEndpoint
 {
     public void Map(IEndpointRouteBuilder app) =>
-        app.MapGet("/api/reports/sales/{eventId:guid}", Handle)
+        app.MapGet("reports/sales/{eventId:guid}", Handle)
+            .MapToApiVersion(ApiVersions.V1)
             .WithTags("Reports")
             .WithName("GetEventSalesReport")
             .WithSummary("Get ticket sales summary for a specific event");

@@ -1,11 +1,13 @@
 using Ripple.Events;
+using Ripple.Api.Versioning;
 
 namespace Ripple.Api.Endpoints.Events;
 
 public class DeleteEventEndpoint : IEndpoint
 {
     public void Map(IEndpointRouteBuilder app) =>
-        app.MapDelete("/api/events/{id:guid}", Handle)
+        app.MapDelete("events/{id:guid}", Handle)
+            .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName("DeleteEvent")
             .WithSummary("Delete an event");

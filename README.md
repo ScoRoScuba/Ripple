@@ -52,17 +52,19 @@ Each database test starts its own PostgreSQL container, so tests are fully indep
 
 ## API Endpoints
 
+All endpoints are versioned in the URL (`/api/v{version}/...`); the current version is **v1**. Every response carries an `api-supported-versions` header, and an unsupported version returns `404`. See [API Versioning](#api-versioning).
+
 | Method | Path | Description |
 |--------|------|-------------|
-| `GET` | `/api/events` | List all events |
-| `POST` | `/api/events` | Create an event |
-| `GET` | `/api/events/{id}` | Get event by ID |
-| `PUT` | `/api/events/{id}` | Replace an event |
-| `DELETE` | `/api/events/{id}` | Delete an event |
-| `GET` | `/api/events/{id}/availability` | View ticket availability |
-| `POST` | `/api/events/{id}/tickets` | Purchase tickets |
-| `GET` | `/api/reports/sales` | Sales summary for all events |
-| `GET` | `/api/reports/sales/{eventId}` | Sales summary for one event |
+| `GET` | `/api/v1/events` | List all events |
+| `POST` | `/api/v1/events` | Create an event |
+| `GET` | `/api/v1/events/{id}` | Get event by ID |
+| `PUT` | `/api/v1/events/{id}` | Replace an event |
+| `DELETE` | `/api/v1/events/{id}` | Delete an event |
+| `GET` | `/api/v1/events/{id}/availability` | View ticket availability |
+| `POST` | `/api/v1/events/{id}/tickets` | Purchase tickets |
+| `GET` | `/api/v1/reports/sales` | Sales summary for all events |
+| `GET` | `/api/v1/reports/sales/{eventId}` | Sales summary for one event |
 
 ---
 
@@ -96,6 +98,10 @@ Structured logging uses **Serilog**. Levels and sinks are configured in the `Ser
 ### Oversell Prevention
 
 Ticket purchasing uses a **PostgreSQL row-level lock** (`SELECT … FOR UPDATE`) inside a `ReadCommitted` transaction. This ensures only one connection can hold the lock for a given pricing tier at a time, so the capacity check and the increment are atomic — even under concurrent load. The DB also enforces `CHECK (tickets_sold <= capacity)` as a last-resort safety net.
+
+### API Versioning
+
+Versioning uses **Asp.Versioning** with the version in the URL path. Supported versions are declared once in `ApiVersions`; `MapEndpoints` maps every endpoint under a single `/api/v{version}` route group, and each endpoint declares the version(s) it implements with `MapToApiVersion`. Adding v2 means adding it to `ApiVersions` and mapping the endpoints that change; unchanged v1 endpoints keep working. Swagger publishes one document per version (`/swagger/v1/swagger.json`).
 
 ### Validation
 
