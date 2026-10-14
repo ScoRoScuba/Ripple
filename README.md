@@ -12,16 +12,20 @@ docker compose up --build
 
 The API will be available at **http://localhost:8080** with Swagger UI at **http://localhost:8080/swagger**.
 
-PostgreSQL starts first; the API waits for it to be healthy before binding. The schema is initialised automatically from `scripts/init.sql` on first container run.
+Startup order: PostgreSQL starts and becomes healthy → the `migrations` service applies any pending schema migrations and exits → the API starts. Re-running is safe; already-applied migrations are skipped.
 
 ---
 
 ## Running Locally
 
-**Prerequisites:** .NET 9 SDK, PostgreSQL 17
+**Prerequisites:** .NET 9 SDK, PostgreSQL 17 (or `docker compose up postgres`)
 
-1. Start PostgreSQL and run `scripts/init.sql` to create the schema.
-2. Update `src/Ripple.Api/appsettings.json` with your connection string.
+1. Copy [`docs/appsettings.Example.json`](docs/appsettings.Example.json) to `src/Ripple.Api/appsettings.Development.json` and fill in your local values. This file is gitignored — never commit it.
+2. Create or upgrade the schema:
+   ```bash
+   dotnet run --project src/Ripple.Migrations -- "Host=localhost;Port=5432;Database=ticketing;Username=postgres;Password=<your-password>"
+   ```
+   The database is created if it doesn't exist. (If `ConnectionStrings__DefaultConnection` is set in your environment, it takes precedence over the argument.)
 3. Run the API:
    ```bash
    dotnet run --project src/Ripple.Api
@@ -35,7 +39,14 @@ PostgreSQL starts first; the API waits for it to be healthy before binding. The 
 dotnet test
 ```
 
-No database required — API tests use a `WebApplicationFactory` with all services mocked.
+| Project | What it covers | Needs |
+|---------|----------------|-------|
+| `Ripple.UnitTests` | Service logic, repositories mocked | — |
+| `Ripple.ApiTests` | Endpoints via `WebApplicationFactory`, services mocked | — |
+| `Ripple.DataStoreTests` | Dapper repositories (transactions, row locking, capacity checks) against a real PostgreSQL | **Docker running** (Testcontainers) |
+| `Ripple.MigrationTests` | Schema, constraints and indexes against a real PostgreSQL | **Docker running** (Testcontainers) |
+
+Each database test starts its own PostgreSQL container, so tests are fully independent.
 
 ---
 
@@ -60,16 +71,27 @@ No database required — API tests use a `WebApplicationFactory` with all servic
 ### Onion Architecture
 
 ```
-Ripple.Domain          ← Entities, domain exceptions. No dependencies.
-Ripple.Application     ← Service interfaces, repository interfaces, DTOs, service logic.
-                         Depends on Domain only.
-Ripple.Infrastructure  ← Dapper repositories, DbConnectionFactory.
-                         Depends on Application (implements its interfaces).
-Ripple.Api             ← Minimal API endpoints, validators, middleware.
-                         Depends on Application + Infrastructure (wiring only).
+Ripple.Domain       ← Entities, domain exceptions. No dependencies.
+Ripple.Interfaces   ← Service and repository interfaces, DTOs. Depends on Domain.
+Ripple.Services     ← Business logic. Depends on Interfaces.
+Ripple.DataStore    ← Dapper repositories, DbConnectionFactory. Depends on Interfaces.
+Ripple.Api          ← Minimal API endpoints, validators, middleware, logging, DI wiring.
+Ripple.Migrations   ← DbUp console app; versioned SQL scripts embedded from Scripts/.
 ```
 
-The key invariant: **Application has zero knowledge of Dapper, Npgsql, or any I/O concern.** Swapping the infrastructure layer (e.g. replacing Dapper with EF Core, or PostgreSQL with SQL Server) requires no changes to Application or Domain.
+The key invariant: **Services have zero knowledge of Dapper, Npgsql, or any I/O concern.** Swapping the data layer (e.g. replacing Dapper with EF Core, or PostgreSQL with SQL Server) requires no changes to Services or Domain.
+
+### Database Migrations
+
+The schema is managed by **DbUp** in `Ripple.Migrations`. Scripts live in `src/Ripple.Migrations/Scripts/`, are named `NNNN_Description.sql`, run in order, and are recorded in the `schemaversions` table so each runs exactly once. Scripts are append-only: to change the schema, add a new script rather than editing one that has been committed.
+
+### Logging
+
+Structured logging uses **Serilog**. Levels and sinks are configured in the `Serilog` section of `appsettings.json` (console by default; the [example settings](docs/appsettings.Example.json) add a daily rolling file under `logs/`). Every entry is enriched with machine name, environment, thread id, client IP and a correlation id — send an `x-correlation-id` header to trace a request end to end, or one is generated.
+
+- One summary line per HTTP request (method, path, status, duration).
+- Handled domain exceptions (404/409/400) log as `Warning`; unhandled exceptions log as `Error` with the stack trace — each failure is logged exactly once.
+- State changes (event created/updated/deleted, tickets purchased) log at `Information`. Purchaser personal data is never logged.
 
 ### Oversell Prevention
 
@@ -110,7 +132,7 @@ A single `ExceptionHandlingMiddleware` catches domain exceptions and maps them t
 - **Outbox pattern** — Emit domain events (e.g. `TicketPurchased`) reliably for downstream consumers (email confirmation, analytics).
 - **Read replicas** — The availability and reporting queries are read-heavy and can be directed to a replica.
 - **Connection pooling** — `NpgsqlDataSource` already pools connections; configuring `MaxPoolSize` and `MinPoolSize` for expected concurrency would be a next step.
-- **Observability** — Add structured logging with correlation IDs, OpenTelemetry tracing, and a `/health` endpoint for liveness/readiness probes.
+- **Observability** — Structured logging with correlation IDs is in place (Serilog); next steps are OpenTelemetry tracing/metrics and a `/health` endpoint for liveness/readiness probes.
 - **Soft deletes** — Instead of hard-deleting events, flag them as cancelled so historical ticket data is preserved.
 
 ---
