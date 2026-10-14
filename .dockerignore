@@ -6,3 +6,8 @@
 **/obj
 **/TestResults
 **/*.user
+
+# Local-only files: secrets and log output must never be baked into an image
+**/.env
+**/*.env
+**/logs
