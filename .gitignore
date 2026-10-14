@@ -41,6 +41,9 @@ appsettings.*.json
 !appsettings.json
 !docs/appsettings.Example.json
 
+# Local Docker Compose overrides (environment-specific config)
+docker-compose.override.yml
+
 # Claude Code
 .claude/
 

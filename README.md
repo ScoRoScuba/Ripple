@@ -4,21 +4,138 @@ A RESTful API for a simplified event ticketing system, built with .NET 9, Dapper
 
 ---
 
-## Quick Start (Docker)
+## Getting Started (Docker)
+
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) (or Docker Engine with the Compose plugin) and Git. Nothing else — the .NET SDK is not needed to run the API this way.
 
 ```bash
-docker compose up --build
+git clone https://github.com/ScoRoScuba/Ripple.git
+cd Ripple
+docker compose up --build -d
 ```
 
-The API will be available at **http://localhost:8080** with Swagger UI at **http://localhost:8080/swagger**.
+Then open **Swagger UI at http://localhost:8080/swagger** to explore and call the API.
 
-Startup order: PostgreSQL starts and becomes healthy → the `migrations` service applies any pending schema migrations and exits → the API starts. Re-running is safe; already-applied migrations are skipped.
+### What starts
+
+| Service | Port | Role |
+|---------|------|------|
+| `postgres` | `5432` | PostgreSQL 17. Data is kept in the `postgres_data` volume between runs. |
+| `migrations` | — | Applies any pending schema migrations, then exits. Safe to re-run: applied migrations are skipped. |
+| `api` | `8080` | The REST API and Swagger UI. Starts only after migrations succeed. |
+
+Startup order is `postgres` (healthy) → `migrations` (completed) → `api`.
+
+> **Port 5432 already in use?** If PostgreSQL is already running on your machine, `postgres` fails to start. Stop the local instance, or map a different host port in an override file (below), e.g. `"5433:5432"`.
+
+### Everyday commands
+
+| Command | What it does |
+|---------|--------------|
+| `docker compose up --build -d` | Build and start everything in the background |
+| `docker compose ps` | Show service status (`migrations` shows *Exited (0)* when it has succeeded) |
+| `docker compose logs -f api` | Follow the API's logs (structured Serilog output) |
+| `docker compose logs migrations` | See which migrations were applied |
+| `docker compose down` | Stop and remove the containers — **data is kept** |
+| `docker compose down -v` | Stop and **delete all data** (the `postgres_data` volume) for a clean start |
+
+### Configuring the containers
+
+Containers are configured only through environment variables — local `appsettings.*.json` files are deliberately excluded from images. To add or change settings, create a `docker-compose.override.yml` next to `docker-compose.yml` (Compose picks it up automatically; it is gitignored). For example, to allow a local front-end to call the API and move PostgreSQL to another port:
+
+```yaml
+services:
+  api:
+    environment:
+      - Cors__AllowedOrigins__0=http://localhost:3000
+  postgres:
+    ports: !override
+      - "5433:5432"
+```
 
 ---
 
-## Running Locally
+## Using the API
 
-**Prerequisites:** .NET 9 SDK, PostgreSQL 17 (or `docker compose up postgres`)
+The walkthrough below uses `curl` from a Bash-compatible shell (macOS, Linux, Git Bash or WSL); every call can equally be made from Swagger UI. All endpoints live under `/api/v1` — see [API Endpoints](#api-endpoints) for the full list.
+
+```bash
+API=http://localhost:8080/api/v1
+```
+
+**1. Create an event.** Tier capacities must add up to `totalCapacity`.
+
+```bash
+curl -s -X POST $API/events -H "Content-Type: application/json" -d '{
+  "name": "Rock Night", "description": "An evening of rock", "venue": "The Arena",
+  "date": "2030-06-01", "time": "20:00:00", "totalCapacity": 100,
+  "pricingTiers": [
+    { "name": "General", "price": 50.00, "capacity": 80 },
+    { "name": "VIP",     "price": 120.00, "capacity": 20 }
+  ]
+}'
+```
+
+The `201 Created` response contains the event's `id` and an `id` for each pricing tier. Copy them into variables for the next steps:
+
+```bash
+EVENT_ID=<event id>
+GENERAL_ID=<id of the General tier>
+VIP_ID=<id of the VIP tier>
+```
+
+**2. Check availability.**
+
+```bash
+curl -s $API/events/$EVENT_ID/availability
+```
+
+**3. Buy tickets.** Returns `201 Created` with the ticket details and total price.
+
+```bash
+curl -s -X POST $API/events/$EVENT_ID/tickets -H "Content-Type: application/json" \
+  -d "{ \"pricingTierId\": \"$VIP_ID\", \"quantity\": 2, \"purchaserName\": \"Jane Doe\", \"purchaserEmail\": \"jane@example.com\" }"
+```
+
+**4. Try to buy more than is left.** Returns `409 Conflict` — tickets are never oversold, even under concurrent purchases.
+
+```bash
+curl -s -X POST $API/events/$EVENT_ID/tickets -H "Content-Type: application/json" \
+  -d "{ \"pricingTierId\": \"$VIP_ID\", \"quantity\": 50, \"purchaserName\": \"Jane Doe\", \"purchaserEmail\": \"jane@example.com\" }"
+```
+
+**5. View the sales report** for the event (or for all events at `$API/reports/sales`).
+
+```bash
+curl -s $API/reports/sales/$EVENT_ID
+```
+
+**6. Update the event.** Send each existing tier with its `id` — that updates the tier in place and keeps its sales. A tier without an `id` is added; an existing tier left out is removed. Here the General price changes, which only affects future purchases:
+
+```bash
+curl -s -X PUT $API/events/$EVENT_ID -H "Content-Type: application/json" -d "{
+  \"name\": \"Rock Night\", \"description\": \"Doors open at 7pm\", \"venue\": \"The Arena\",
+  \"date\": \"2030-06-01\", \"time\": \"20:00:00\", \"totalCapacity\": 100,
+  \"pricingTiers\": [
+    { \"id\": \"$GENERAL_ID\", \"name\": \"General\", \"price\": 55.00, \"capacity\": 80 },
+    { \"id\": \"$VIP_ID\",     \"name\": \"VIP\",     \"price\": 120.00, \"capacity\": 20 }
+  ]
+}"
+```
+
+**7. Sales history is protected.** Removing the VIP tier (which has sales), or deleting the event, returns `409 Conflict`:
+
+```bash
+curl -s -X DELETE $API/events/$EVENT_ID
+```
+
+Errors are returned as [problem details](https://www.rfc-editor.org/rfc/rfc9457) (`application/problem+json`) with a human-readable `detail`; validation failures return `422` with the failing fields under `errors`.
+
+---
+
+## Running Locally (without Docker for the API)
+
+**Prerequisites:** .NET 9 SDK, and PostgreSQL 17 — either installed locally or just the container: `docker compose up -d postgres`.
 
 1. Copy [`docs/appsettings.Example.json`](docs/appsettings.Example.json) to `src/Ripple.Api/appsettings.Development.json` and fill in your local values. This file is gitignored — never commit it.
 2. Create or upgrade the schema:
@@ -30,6 +147,7 @@ Startup order: PostgreSQL starts and becomes healthy → the `migrations` servic
    ```bash
    dotnet run --project src/Ripple.Api
    ```
+   It listens on **http://localhost:5084** (Swagger at http://localhost:5084/swagger). Use `--launch-profile https` for https://localhost:7027.
 
 ---
 
@@ -39,14 +157,18 @@ Startup order: PostgreSQL starts and becomes healthy → the `migrations` servic
 dotnet test
 ```
 
+Docker must be running: the database tests start their own PostgreSQL containers via Testcontainers.
+
 | Project | What it covers | Needs |
 |---------|----------------|-------|
-| `Ripple.UnitTests` | Service logic, repositories mocked | — |
-| `Ripple.ApiTests` | Endpoints via `WebApplicationFactory`, services mocked | — |
-| `Ripple.DataStoreTests` | Dapper repositories (transactions, row locking, capacity checks) against a real PostgreSQL | **Docker running** (Testcontainers) |
-| `Ripple.MigrationTests` | Schema, constraints and indexes against a real PostgreSQL | **Docker running** (Testcontainers) |
+| `Ripple.UnitTests` | Service logic and business rules, repositories mocked | — |
+| `Ripple.ApiTests` | Endpoints, validation, error responses, versioning, CORS and the OpenAPI contract — hosted on a test-only startup that wires just what each scenario needs, with services mocked | — |
+| `Ripple.DataStoreTests` | Dapper repositories against a real PostgreSQL: transactions, concurrent purchases, sales-history protection, reporting SQL | **Docker** |
+| `Ripple.MigrationTests` | Schema, constraints, foreign keys and indexes after all migrations | **Docker** |
 
 Each database test starts its own PostgreSQL container, so tests are fully independent.
+
+**API contract snapshot.** `OpenApiVerifyTests` compares the generated OpenAPI document with the approved `tests/Ripple.ApiTests/OpenApiTests/*.verified.json`. If you change the API on purpose, the test fails and writes a `.received.json` next to it: review the diff, and if it is what you intended, replace the `.verified.json` with it and commit both together.
 
 ---
 
@@ -113,14 +235,16 @@ Requests are validated with **FluentValidation** before reaching the service lay
 
 ### Error Handling
 
-A single `ExceptionHandlingMiddleware` catches domain exceptions and maps them to appropriate HTTP status codes:
+A single `ExceptionHandlingMiddleware` catches domain exceptions and maps them to HTTP status codes. Every error is returned as problem details (`application/problem+json`); expected outcomes are logged as warnings, anything unmapped as an error with its stack trace.
 
-| Exception | Status |
-|-----------|--------|
-| `EventNotFoundException` / `PricingTierNotFoundException` | 404 |
-| `InsufficientCapacityException` | 409 |
-| `ArgumentException` | 400 |
-| Anything else | 500 |
+| Exception | Status | When |
+|-----------|--------|------|
+| `EventNotFoundException` / `PricingTierNotFoundException` | 404 | Unknown event or pricing tier |
+| `InsufficientCapacityException` | 409 | Not enough tickets left in the tier |
+| `SalesHistoryConflictException` | 409 | Edit or delete that would remove or invalidate tickets sold |
+| `ArgumentException` | 400 | Business-rule violation, e.g. tier capacities not summing to the total |
+| *(validation failure)* | 422 | Request fails FluentValidation (returned by the endpoint, not the middleware) |
+| Anything else | 500 | Unexpected fault |
 
 ---
 
@@ -149,4 +273,15 @@ A single `ExceptionHandlingMiddleware` catches domain exceptions and maps them t
 
 ## AI Tooling
 
-This solution was built with **Claude Code** (Anthropic). Claude was used to scaffold the project structure, generate the initial implementations across all layers, and iterate on build/test failures. All architectural decisions (Onion layers, locking strategy, validation approach) were authored by the developer; Claude accelerated the writing of repetitive structural code and caught a type-mapping issue (`DateOnly`/`TimeOnly` with Dapper + Npgsql) early in the process.
+This solution was built with **Claude Code** (Anthropic). All architectural and design decisions were made by the developer; Claude was used as a pair programmer under that direction.
+
+**Building it.** Claude scaffolded the project structure, generated the initial implementations across all layers, and iterated on build and test failures — including catching a type-mapping issue (`DateOnly`/`TimeOnly` with Dapper + Npgsql) early.
+
+**Hardening it.** In a second phase Claude was used as a reviewer and implementer against the developer's standards, which are captured in [`CLAUDE.md`](CLAUDE.md) (SOLID, pragmatic DRY, independent tests, immutable sales history) so every change is held to them:
+
+- **Review against the requirements** — mapping each ticketing and reporting requirement to its tests exposed gaps (no concurrency test for overselling, untested reporting SQL) and two data-loss defects: repository writes failing with *"Connection already open"*, and event edits cascading into deleted ticket sales. Each was reproduced against the running API before being fixed.
+- **Implementing the developer's design choices** — one endpoint per file with `IEndpoint` discovery, URL-segment API versioning, Serilog structured logging, configurable CORS, DbUp migrations, and API tests hosted on a scenario-specific startup rather than the application's `Program.cs`.
+- **Proving the tests work** — new tests were checked by deliberately breaking the code they protect (removing the row lock, introducing an off-by-one, reverting the history safeguards) and confirming they fail, then restoring it.
+- **Verifying end to end** — behaviour, Docker configuration and this README's commands were exercised against a fresh `docker compose` stack rather than assumed.
+
+Claude also made mistakes along the way — for example a misjudged expected status code and a stale-build test run — which were caught by the same verify-before-claiming discipline.
