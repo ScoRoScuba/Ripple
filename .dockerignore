@@ -11,3 +11,7 @@
 **/.env
 **/*.env
 **/logs
+
+# Environment-specific settings are local-only; images get the committed appsettings.json
+# and are configured through environment variables.
+**/appsettings.*.json
