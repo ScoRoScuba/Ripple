@@ -31,9 +31,6 @@ coverage/
 *.coveragexml
 *.trx
 
-# Docker
-.dockerignore
-
 # Environment / secrets
 .env
 *.env
