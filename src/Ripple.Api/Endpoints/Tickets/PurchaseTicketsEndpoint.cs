@@ -1,0 +1,27 @@
+using FluentValidation;
+using Ripple.Tickets;
+
+namespace Ripple.Api.Endpoints.Tickets;
+
+public class PurchaseTicketsEndpoint : IEndpoint
+{
+    public void Map(IEndpointRouteBuilder app) =>
+        app.MapPost("/api/events/{eventId:guid}/tickets", Handle)
+            .WithTags("Tickets")
+            .WithName("PurchaseTickets")
+            .WithSummary("Purchase tickets for an event");
+
+    private static async Task<IResult> Handle(
+        Guid eventId,
+        PurchaseTicketRequest request,
+        IValidator<PurchaseTicketRequest> validator,
+        ITicketService service)
+    {
+        var validation = await validator.ValidateAsync(request);
+        if (!validation.IsValid)
+            return Results.ValidationProblem(validation.ToDictionary(), statusCode: StatusCodes.Status422UnprocessableEntity);
+
+        var result = await service.PurchaseAsync(eventId, request);
+        return Results.Created($"/api/events/{eventId}/tickets/{result.TicketId}", result);
+    }
+}

@@ -30,6 +30,8 @@ try
     builder.Services.AddScoped<IValidator<UpdateEventRequest>, UpdateEventRequestValidator>();
     builder.Services.AddScoped<IValidator<PurchaseTicketRequest>, PurchaseTicketRequestValidator>();
 
+    builder.Services.AddEndpoints(typeof(Program).Assembly);
+
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(c =>
     {
@@ -45,9 +47,7 @@ try
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Ripple Ticketing API v1"));
 
-    app.MapEventEndpoints();
-    app.MapTicketEndpoints();
-    app.MapReportEndpoints();
+    app.MapEndpoints();
 
     app.Run();
 }

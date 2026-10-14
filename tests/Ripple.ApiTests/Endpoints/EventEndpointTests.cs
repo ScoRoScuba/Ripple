@@ -89,6 +89,40 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
     }
 
     [Fact]
+    public async Task UpdateEvent_WithValidRequest_Returns200()
+    {
+        var id = Guid.NewGuid();
+        factory.MockEventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
+            .ReturnsAsync(SampleEventResponse(id));
+
+        var response = await _client.PutAsJsonAsync($"/api/events/{id}", SampleUpdateRequest());
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task UpdateEvent_WithNoPricingTiers_Returns422()
+    {
+        var request = SampleUpdateRequest() with { PricingTiers = [] };
+
+        var response = await _client.PutAsJsonAsync($"/api/events/{Guid.NewGuid()}", request);
+
+        response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+    }
+
+    [Fact]
+    public async Task UpdateEvent_WhenNotFound_Returns404()
+    {
+        var id = Guid.NewGuid();
+        factory.MockEventService.Setup(s => s.UpdateAsync(id, It.IsAny<UpdateEventRequest>()))
+            .ThrowsAsync(new EventNotFoundException(id));
+
+        var response = await _client.PutAsJsonAsync($"/api/events/{id}", SampleUpdateRequest());
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task DeleteEvent_WhenFound_Returns204()
     {
         var id = Guid.NewGuid();
@@ -121,4 +155,10 @@ public class EventEndpointTests(TestWebAppFactory factory) : IClassFixture<TestW
         DateOnly.FromDateTime(DateTime.UtcNow.AddDays(30)),
         new TimeOnly(20, 0), 200,
         [new("General", 50m, 150), new("VIP", 120m, 50)]);
+
+    private static UpdateEventRequest SampleUpdateRequest() => new(
+        "Rock Night (Rescheduled)", "An amazing show", "The Arena",
+        DateOnly.FromDateTime(DateTime.UtcNow.AddDays(60)),
+        new TimeOnly(20, 0), 200,
+        [new("General", 50m, 200)]);
 }
