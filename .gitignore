@@ -31,6 +31,9 @@ coverage/
 *.coveragexml
 *.trx
 
+# Verify snapshot test output (only *.verified.* files are committed)
+*.received.*
+
 # Environment / secrets
 .env
 *.env
