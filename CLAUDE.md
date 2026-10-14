@@ -57,6 +57,7 @@ These are important in this codebase. Follow them in new code and when changing 
 
 - `src/Ripple.Api/appsettings.json` holds shared, non-secret defaults and is the only settings file committed under `src/`.
 - Environment files (`appsettings.Development.json`, etc.) are local-only and gitignored. Never add one to the repo.
+- CORS origins come only from `Cors:AllowedOrigins`; the committed default stays empty. Never use `AllowAnyOrigin`. If a new response header must be readable by browser clients, add it to the exposed headers in `CorsExtensions`.
 - `docs/appsettings.Example.json` is the committed template: copy it to `src/Ripple.Api/appsettings.Development.json` and fill in local values. When a new setting is added, add it to the example too. Guides and the README should link to it rather than repeat its contents.
 
 ## Logging (Serilog)

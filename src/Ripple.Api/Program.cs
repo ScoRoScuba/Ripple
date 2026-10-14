@@ -1,3 +1,4 @@
+using Ripple.Api.Cors;
 using Ripple.Api.Documentation;
 using Ripple.Api.Endpoints;
 using Ripple.Api.Logging;
@@ -25,12 +26,15 @@ try
         .AddValidators()
         .AddVersioning()
         .AddEndpoints(typeof(IEndpoint).Assembly)
-        .AddApiDocumentation();
+        .AddApiDocumentation()
+        .AddCorsPolicy(builder.Configuration);
 
     var app = builder.Build();
 
     // Outermost, so the request log records the status code the exception middleware sets.
     app.UseRequestLogging();
+    // Early, so preflight (OPTIONS) requests are answered before the rest of the pipeline runs.
+    app.UseCorsPolicy();
     app.UseMiddleware<ExceptionHandlingMiddleware>();
 
     app.UseApiDocumentation();

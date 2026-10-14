@@ -103,6 +103,10 @@ Ticket purchasing uses a **PostgreSQL row-level lock** (`SELECT … FOR UPDATE`)
 
 Versioning uses **Asp.Versioning** with the version in the URL path. Supported versions are declared once in `ApiVersions`; `MapEndpoints` maps every endpoint under a single `/api/v{version}` route group, and each endpoint declares the version(s) it implements with `MapToApiVersion`. Adding v2 means adding it to `ApiVersions` and mapping the endpoints that change; unchanged v1 endpoints keep working. Swagger publishes one document per version (`/swagger/v1/swagger.json`).
 
+### CORS
+
+Browser clients on other origins are allowed only if listed in `Cors:AllowedOrigins` (any method and header). The committed default is an empty list, so **no cross-origin access until configured** — add your front-end's origin in local settings (see the [example](docs/appsettings.Example.json)) or via environment variables, e.g. `Cors__AllowedOrigins__0=https://app.example.com`. The `Location` and `api-supported-versions` response headers are exposed so browser code can read them.
+
 ### Validation
 
 Requests are validated with **FluentValidation** before reaching the service layer. Invalid requests return `422 Unprocessable Entity` with a structured `ValidationProblemDetails` body. The validator is injected directly into each endpoint, keeping the service layer clean of input-validation concerns.
