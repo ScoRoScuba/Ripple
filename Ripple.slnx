@@ -9,6 +9,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Ripple.ApiTests/Ripple.ApiTests.csproj" />
+    <Project Path="tests/Ripple.MigrationTests/Ripple.MigrationTests.csproj" />
     <Project Path="tests/Ripple.UnitTests/Ripple.UnitTests.csproj" />
   </Folder>
 </Solution>

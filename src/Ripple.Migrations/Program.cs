@@ -1,30 +1,16 @@
-using System.Reflection;
-using DbUp;
+using Ripple.Migrations;
 
 var connectionString =
     Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
     ?? args.FirstOrDefault()
     ?? "Host=localhost;Port=5432;Database=ticketing;Username=postgres;Password=postgres";
 
-EnsureDatabase.For.PostgresqlDatabase(connectionString);
-
-var upgrader = DeployChanges.To
-    .PostgresqlDatabase(connectionString)
-    .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
-    .WithTransactionPerScript()
-    .LogToConsole()
-    .Build();
-
-if (upgrader.IsUpgradeRequired())
-{
+if (MigrationRunner.IsUpgradeRequired(connectionString))
     Console.WriteLine("Applying pending migrations...");
-}
 else
-{
     Console.WriteLine("Database is already up to date.");
-}
 
-var result = upgrader.PerformUpgrade();
+var result = MigrationRunner.Run(connectionString);
 
 if (!result.Successful)
 {
