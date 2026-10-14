@@ -1,0 +1,71 @@
+# CLAUDE.md
+
+Guidance for Claude Code when working in this repository.
+
+## Project
+
+Ripple is an event ticketing REST API: .NET 9, Minimal APIs, Dapper, PostgreSQL 17, DbUp migrations.
+
+## Commands
+
+```bash
+dotnet build Ripple.slnx
+dotnet test Ripple.slnx                      # all tests — Docker must be running
+dotnet test tests/Ripple.MigrationTests      # migration tests only (Testcontainers)
+docker compose up --build                    # postgres → migrations → api on :8080
+```
+
+## Architecture
+
+Onion layering. Dependencies point inwards only:
+
+```
+Ripple.Domain       ← entities, domain exceptions. No dependencies.
+Ripple.Interfaces   ← service/repository interfaces, DTOs. Depends on Domain.
+Ripple.Services     ← business logic. Depends on Interfaces.
+Ripple.DataStore    ← Dapper repositories. Depends on Interfaces.
+Ripple.Api          ← endpoints, validators, middleware, DI wiring.
+Ripple.Migrations   ← DbUp console app; SQL scripts embedded from Scripts/.
+```
+
+- `Ripple.Services` must not reference Dapper, Npgsql or any I/O library.
+- Input validation lives in FluentValidation validators in `Ripple.Api`, not in services.
+- Domain exceptions map to HTTP status codes in `ExceptionHandlingMiddleware`; add new mappings there.
+
+## Design principles
+
+These are important in this codebase. Follow them in new code and when changing existing code, and call out any trade-off where one is bent.
+
+**SOLID**
+
+- **Single Responsibility (SRP)** — each class has one reason to change. Endpoints handle HTTP only, validators validate, services hold business rules, repositories do data access. If a class or method needs "and" to describe it, split it. (e.g. `MigrationRunner` runs migrations; `Program.cs` only reads config and reports the result.)
+- **Open/Closed (OCP)** — extend behaviour by adding new types (a new validator, a new exception mapping, a new migration script) rather than editing working code paths with extra branches.
+- **Liskov Substitution (LSP)** — any implementation of an interface must honour its full contract: same nullability, same exceptions for the same conditions, no `NotImplementedException`. Mocks in tests must behave like the real thing.
+- **Interface Segregation (ISP)** — keep interfaces small and focused on what the caller needs. Don't add a method to an existing interface just because it's convenient; consider a new interface.
+- **Dependency Inversion (DIP)** — depend on abstractions in `Ripple.Interfaces`, injected via the constructor. Never `new` up a service or repository inside another one; wire everything in `Ripple.Api` DI.
+
+**Also**
+
+- **DRY, applied pragmatically** — remove duplication of *knowledge* (a business rule, a config chain that must stay in sync) so it changes in one place. Don't extract shared code just because a few lines look alike, and don't add an abstraction that makes the code harder to read than the duplication it removes. A little repetition is fine — especially in tests, where each test should read on its own.
+- **KISS / YAGNI** — the simplest thing that meets the current requirement. No speculative abstractions, options or extension points.
+- Small methods with intention-revealing names; prefer guard clauses over deep nesting.
+- Composition over inheritance.
+
+## Database & migrations
+
+- The schema source of truth is `src/Ripple.Migrations/Scripts/`. `scripts/init.sql` is legacy and should not be edited.
+- Migration scripts are append-only and numbered `NNNN_Description.sql`. Never modify a script that has already been committed; add a new one.
+- Keep SQL explicit in the Dapper repositories (no query builders). Concurrency-sensitive writes use `SELECT … FOR UPDATE` inside a transaction.
+
+## Testing guidelines
+
+- **Tests must be independent.** Each test sets up its own state and its own Postgres container; do not introduce shared fixtures (`IClassFixture`/`ICollectionFixture`) to save time.
+- **Test our code, not the libraries.** Don't assert on behaviour that belongs to DbUp, Dapper, Npgsql or Postgres itself; assert on the outcomes our code is responsible for.
+- Don't hard-code values that are derived from the codebase (e.g. the number of migration scripts); compute them.
+- `Ripple.UnitTests` and `Ripple.ApiTests` use Moq and need no database. `Ripple.MigrationTests` runs against a real Postgres via Testcontainers.
+- Run the full test suite and confirm it passes before saying a change is done.
+
+## Workflow
+
+- Work is committed directly to `master`.
+- Don't commit or push unless asked.
