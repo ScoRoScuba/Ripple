@@ -67,7 +67,7 @@ These are important in this codebase. Follow them in new code and when changing 
 
 ## Database & migrations
 
-- The schema source of truth is `src/Ripple.Migrations/Scripts/`. `scripts/init.sql` is legacy and should not be edited.
+- The schema source of truth is `src/Ripple.Migrations/Scripts/`. Don't add standalone schema SQL elsewhere.
 - Migration scripts are append-only and numbered `NNNN_Description.sql`. Never modify a script that has already been committed; add a new one.
 - Keep SQL explicit in the Dapper repositories (no query builders). Concurrency-sensitive writes use `SELECT … FOR UPDATE` inside a transaction.
 
