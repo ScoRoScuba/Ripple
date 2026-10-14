@@ -51,6 +51,12 @@ These are important in this codebase. Follow them in new code and when changing 
 - Small methods with intention-revealing names; prefer guard clauses over deep nesting.
 - Composition over inheritance.
 
+## Configuration
+
+- `src/Ripple.Api/appsettings.json` holds shared, non-secret defaults and is the only settings file committed under `src/`.
+- Environment files (`appsettings.Development.json`, etc.) are local-only and gitignored. Never add one to the repo.
+- `docs/appsettings.Example.json` is the committed template: copy it to `src/Ripple.Api/appsettings.Development.json` and fill in local values. When a new setting is added, add it to the example too. Guides and the README should link to it rather than repeat its contents.
+
 ## Logging (Serilog)
 
 - Serilog is configured once, in `Ripple.Api/Logging/SerilogExtensions.cs`. Levels and sinks live in the `Serilog` section of `appsettings*.json`; enrichers are set in code.

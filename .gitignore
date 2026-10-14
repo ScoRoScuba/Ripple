@@ -39,6 +39,7 @@ coverage/
 *.env
 appsettings.*.json
 !appsettings.json
+!docs/appsettings.Example.json
 
 # Claude Code
 .claude/
