@@ -11,7 +11,11 @@ public class UpdateEventEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName("UpdateEvent")
-            .WithSummary("Replace an event");
+            .WithSummary("Replace an event")
+            .Produces<EventResponse>()
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
     private static async Task<IResult> Handle(
         Guid id,

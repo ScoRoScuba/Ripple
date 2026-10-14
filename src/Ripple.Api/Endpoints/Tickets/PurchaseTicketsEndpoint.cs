@@ -11,7 +11,11 @@ public class PurchaseTicketsEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Tickets")
             .WithName("PurchaseTickets")
-            .WithSummary("Purchase tickets for an event");
+            .WithSummary("Purchase tickets for an event")
+            .Produces<TicketPurchaseResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
     private static async Task<IResult> Handle(
         Guid eventId,

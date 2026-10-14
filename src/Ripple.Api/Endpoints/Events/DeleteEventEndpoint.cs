@@ -10,7 +10,9 @@ public class DeleteEventEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName("DeleteEvent")
-            .WithSummary("Delete an event");
+            .WithSummary("Delete an event")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
     private static async Task<IResult> Handle(Guid id, IEventService service)
     {

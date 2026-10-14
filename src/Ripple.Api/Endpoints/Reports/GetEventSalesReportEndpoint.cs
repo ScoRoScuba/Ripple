@@ -10,13 +10,18 @@ public class GetEventSalesReportEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Reports")
             .WithName("GetEventSalesReport")
-            .WithSummary("Get ticket sales summary for a specific event");
+            .WithSummary("Get ticket sales summary for a specific event")
+            .Produces<EventSalesReport>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
     private static async Task<IResult> Handle(Guid eventId, IReportService service)
     {
         var report = await service.GetEventReportAsync(eventId);
         return report is null
-            ? Results.NotFound(new { detail = $"No report data found for event '{eventId}'." })
+            ? Results.Problem(
+                detail: $"No report data found for event '{eventId}'.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Not Found")
             : Results.Ok(report);
     }
 }

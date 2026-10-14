@@ -10,7 +10,8 @@ public class GetAllEventsEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName("GetAllEvents")
-            .WithSummary("List all events");
+            .WithSummary("List all events")
+            .Produces<IEnumerable<EventResponse>>();
 
     private static async Task<IResult> Handle(IEventService service) =>
         Results.Ok(await service.GetAllAsync());

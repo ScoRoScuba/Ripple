@@ -46,12 +46,15 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
     private static Task WriteProblemAsync(HttpContext context, Exception exception, int statusCode, string title)
     {
         context.Response.StatusCode = statusCode;
-        return context.Response.WriteAsJsonAsync(new
-        {
-            type = $"https://httpstatuses.com/{statusCode}",
-            title,
-            status = statusCode,
-            detail = exception.Message
-        });
+        return context.Response.WriteAsJsonAsync(
+            new
+            {
+                type = $"https://httpstatuses.com/{statusCode}",
+                title,
+                status = statusCode,
+                detail = exception.Message
+            },
+            options: (System.Text.Json.JsonSerializerOptions?)null,
+            contentType: "application/problem+json");
     }
 }

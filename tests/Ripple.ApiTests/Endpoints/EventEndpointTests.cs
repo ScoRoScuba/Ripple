@@ -55,6 +55,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         var response = await _client.GetAsync($"/api/v1/events/{id}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
     }
 
     [Fact]
@@ -81,6 +82,7 @@ public class EventEndpointTests : IClassFixture<CustomWebApplicationFactory<Scen
         var response = await _client.PostAsJsonAsync("/api/v1/events", request);
 
         response.StatusCode.Should().Be(HttpStatusCode.UnprocessableEntity);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
     }
 
     [Fact]

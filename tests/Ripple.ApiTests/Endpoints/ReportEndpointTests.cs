@@ -54,6 +54,7 @@ public class ReportEndpointTests : IClassFixture<CustomWebApplicationFactory<Sce
         var response = await _client.GetAsync($"/api/v1/reports/sales/{eventId}");
 
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/problem+json");
     }
 
     private static EventSalesReport SampleReport(Guid? id = null) => new(

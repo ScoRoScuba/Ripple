@@ -10,7 +10,8 @@ public class GetAllSalesReportsEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Reports")
             .WithName("GetAllSalesReports")
-            .WithSummary("Get ticket sales summary for all events");
+            .WithSummary("Get ticket sales summary for all events")
+            .Produces<IEnumerable<EventSalesReport>>();
 
     private static async Task<IResult> Handle(IReportService service) =>
         Results.Ok(await service.GetAllEventsReportAsync());

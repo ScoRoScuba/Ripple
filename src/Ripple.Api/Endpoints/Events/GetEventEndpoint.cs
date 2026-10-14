@@ -12,7 +12,9 @@ public class GetEventEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName(Name)
-            .WithSummary("Get event by ID");
+            .WithSummary("Get event by ID")
+            .Produces<EventResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
     private static async Task<IResult> Handle(Guid id, IEventService service) =>
         Results.Ok(await service.GetByIdAsync(id));

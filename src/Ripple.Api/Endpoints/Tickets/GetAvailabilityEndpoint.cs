@@ -10,7 +10,9 @@ public class GetAvailabilityEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Tickets")
             .WithName("GetAvailability")
-            .WithSummary("Get ticket availability for an event");
+            .WithSummary("Get ticket availability for an event")
+            .Produces<EventAvailabilityResponse>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
 
     private static async Task<IResult> Handle(Guid eventId, ITicketService service) =>
         Results.Ok(await service.GetAvailabilityAsync(eventId));

@@ -11,7 +11,10 @@ public class CreateEventEndpoint : IEndpoint
             .MapToApiVersion(ApiVersions.V1)
             .WithTags("Events")
             .WithName("CreateEvent")
-            .WithSummary("Create a new event");
+            .WithSummary("Create a new event")
+            .Produces<EventResponse>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesValidationProblem(StatusCodes.Status422UnprocessableEntity);
 
     private static async Task<IResult> Handle(
         CreateEventRequest request,
